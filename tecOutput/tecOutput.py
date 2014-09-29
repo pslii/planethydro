@@ -52,10 +52,12 @@ class outputTec:
             import os
             os.remove(path + '/tecout.so')
         except OSError:
+            print "No such file."
             pass
 
         # paths set for M10
-        f2py.compile(self.source, modulename='tecout',
+        self.modulename = 'tecout' + str(self.ndims) + 'D'
+        f2py.compile(self.source, modulename=self.modulename,
                      extra_args='-I/data/programs/local/src/tecio-wrap/ ' + \
                                 '--f90exec=/opt/intel/composer_xe_2011_sp1.8.273/bin/intel64/ifort ' + \
                                 '-L/data/programs/local/lib/ -ltecio -lstdc++')
@@ -139,18 +141,15 @@ class outputTec:
 
     def writeNDat(self, ndat, data, phi):
         _x, _y, _z = self.grid.plotCoords(phi, ndims=self.ndims)
+
         import sys, os
-
         sys.path.append(os.getcwd())
-        import tecout;
-
-        reload(tecout);
+        tecout = __import__(self.modulename)
+        reload(tecout)
 
         for _var in self.varlist:
             assert (_var in data.keys()), "Error: {0} not found in data".format(_var)
             _temp = self.extend(data.get(_var))
-            # _last = _temp[:,-1,:]
-            # _temp = np.append(_temp, _last[:,np.newaxis,:], 1)
             assert _temp.shape == self.shape, "Error: shape mismatch {0}, {1}".format(_temp.shape, self.shape)
             exec (_var + ' = _temp')
 
