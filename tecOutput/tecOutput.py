@@ -50,7 +50,6 @@ class outputTec:
 
         try:
             import os
-
             os.remove(path + '/tecout.so')
         except OSError:
             pass
@@ -143,6 +142,9 @@ class outputTec:
         import sys, os
 
         sys.path.append(os.getcwd())
+        import tecout;
+
+        reload(tecout);
 
         for _var in self.varlist:
             assert (_var in data.keys()), "Error: {0} not found in data".format(_var)
