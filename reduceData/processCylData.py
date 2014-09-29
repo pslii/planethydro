@@ -1,10 +1,12 @@
 #!/home/marina/envs/planet/bin/python
-from planetHydro.parseData.initialize import initialize
-from planetHydro.reduceData import processData
-from planetHydro.tecOutput import tecOutput
+import numpy as np
+
+from .. import parseData
+from . import processData
+from ..tecOutput import tecOutput
+
 
 __author__ = 'Patrick'
-import numpy as np
 
 
 class cylDataReduction:
@@ -95,10 +97,10 @@ class cylDataReduction:
 
 
 def _test3d():
-    params, grid, dataReader = initialize()
+    params, grid, dataReader = parseData.initialize()
     tecOut = tecOutput.outputTec(['rho', 'rho_i', 'rho_pertb'], grid, output=True, suffix='_3d.dat')
 
-    start, end, num = tecOutput._detectData()
+    start, end, num = tecOutput.detectData()
 
     for ndat in range(start, end):
         data = dataReader.readData(ndat, legacy=False)
@@ -113,10 +115,10 @@ def _test3d():
 
 
 def _test():
-    params, grid, dataReader = initialize()
+    params, grid, dataReader = parseData.initialize()
     varlist = ['sigma', 'pi', 'sigma_i', 'rhoPertb', 'torque', 'torque_i', 'vphi']
     tecOut = tecOutput.outputTec(varlist, grid, outDim=2, output=True)
-    start, end, num = tecOutput._detectData()
+    start, end, num = tecOutput.detectData()
 
     for ndat in range(start, end):
         data = dataReader.readData(ndat, legacy=False)

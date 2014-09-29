@@ -165,7 +165,7 @@ class outputTec:
               self.varstring + ')')
 
 
-def _detectData(path='.', n_start=0):
+def detectData(path='.', n_start=0):
     from os.path import isfile
     # Detect number of files to be processed
     """

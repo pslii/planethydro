@@ -2,8 +2,8 @@
 import numpy as np
 import pandas as pd
 
-from planetHydro.parseData.initialize import initialize
-from planetHydro.tecOutput.tecOutput import _detectData, outputTec
+from .. import parseData
+from ..tecOutput.tecOutput import detectData, outputTec
 
 
 """
@@ -506,10 +506,10 @@ def processAll(path='.'):
 
 
 def makeTecplot(path='.', n_start=1, n_skip=1):
-    params, grid, datReader = initialize(path=path)
+    params, grid, datReader = parseData.initialize(path=path)
 
     # detect number of files to be processed
-    start, end, ndats = _detectData(path=path, n_start=n_start)
+    start, end, ndats = detectData(path=path, n_start=n_start)
 
     varlist = ['rho', 'p', 's', 'vr', 'vphi', 'vKep', 'vx', 'vy',
                'rho_i', 'p_i', 'v_i',
