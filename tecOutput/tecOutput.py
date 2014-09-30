@@ -7,8 +7,8 @@ class outputTec:
     spc = '      '
     nxt = '     $'
 
-    def __init__(self, varlist, grid, outDim=None,
-                 suffix='xy.dat', path='.',
+    def __init__(self, varlist, grid, outDim='xy',
+                 suffix='xy', path='.',
                  output=False):
         """
 
@@ -26,37 +26,44 @@ class outputTec:
         :param output:
         """
         self.grid = grid
-        self.ndims = grid.ndims if outDim is None else outDim
-        if self.ndims == 2:
+        if (outDim == 'xy') | (outDim == 'rphi'):
+            self.ndims = 2
             self.gridsig = (['x', 'y'], 'nxtot, nytot')
             self.nztot = 1
             self.shape = self.nxtot, self.nytot = grid.nxtot, grid.nytot + 1
-        elif self.ndims == 3:
+        elif (outDim == 'xz') | (outDim == 'rz'):
+            self.ndims = 2
+            self.gridsig = (['x', 'y'], 'nxtot, nytot')
+            self.nztot = 1
+            self.shape = self.nxtot, self.nytot = grid.nxtot, grid.nztot
+        elif (outDim == 'xyz') | (outDim == '3D'):
+            self.ndims = 3
             self.gridsig = (['x', 'y', 'z'], 'nxtot, nytot, nztot')
             self.shape = self.nxtot, self.nytot, self.nztot = grid.nxtot, grid.nytot + 1, grid.nztot
         else:
-            assert False, "Error: invalid output dimension {0}".format(outDim)
+            assert False, "Error: {0} is not a valid output dimension".format(outDim)
 
         self.varlist = varlist
-        self.suffix = suffix
+        self.suffix = suffix + '.dat'
         self.varstring = ','.join(varlist)
         self.fortranvarlist = (',\n' + self.nxt + ' ').join(self.gridsig[0] + varlist)
         self.path = path
 
         self.source = self.genSource()
         if output:
-            with open(path + "/tecout.f", "w") as txt_file:
+            with open(path + "/tecout" + suffix + ".f", "w") as txt_file:
                 txt_file.write(self.source)
 
         try:
             import os
-            os.remove(path + '/tecout.so')
+
+            os.remove(path + '/tecout' + suffix + '.so')
         except OSError:
-            print "No such file."
+            print "No previous output lib detected."
             pass
 
         # paths set for M10
-        self.modulename = 'tecout' + str(self.ndims) + 'D'
+        self.modulename = 'tecout' + suffix
         f2py.compile(self.source, modulename=self.modulename,
                      extra_args='-I/data/programs/local/src/tecio-wrap/ ' + \
                                 '--f90exec=/opt/intel/composer_xe_2011_sp1.8.273/bin/intel64/ifort ' + \
@@ -84,7 +91,6 @@ class outputTec:
     def genTECINI(self, Title='xy', ScratchDir='.', VIsDouble=0):
         spc, nxt = self.spc, self.nxt
         name = spc + "write(fname,'(i4.4 " + '"' + self.suffix + '"' + ")') ndat\n"
-        name += spc + "write(*,*) fname\n"
         Title = self.bind(Title)
         Variables = self.bind(self.fortranvarlist)
         Fname = 'trim(fname)//nullchr'
@@ -139,13 +145,37 @@ class outputTec:
             last = arr[:, -1, :]
             return np.append(arr, last[:, np.newaxis, :], 1)
 
-    def writeNDat(self, ndat, data, phi):
-        _x, _y, _z = self.grid.plotCoords(phi, ndims=self.ndims)
 
+    def importTec(self):
         import sys, os
         sys.path.append(os.getcwd())
         tecout = __import__(self.modulename)
         reload(tecout)
+        return tecout
+
+    def writeRZ(self, ndat, data):
+        """
+        Writes 2D cartesian, r, z
+        """
+        _r, _z = self.grid.plotCoordsRZ()
+        tecout = self.importTec()
+
+        for _var in self.varlist:
+            assert _var in data.keys(), "Error: {0} not found in data".format(_var)
+            _temp = data.get(_var)
+            assert _temp.shape == self.shape, "Error: shape mismatch {0}, {1}".format(_var.shape, self.shape)
+            exec (_var + ' = _temp')
+
+        print "Writing file: " + str(ndat).zfill(4) + self.suffix
+        exec ('tecout.tecoutput(' + str(ndat) + ',_r,_z,' + self.varstring + ')')
+
+
+    def writeCylindrical(self, ndat, data, phi):
+        """
+        Writes cylindrical/polar
+        """
+        _x, _y, _z = self.grid.plotCoords(phi, ndims=self.ndims)
+        tecout = self.importTec()
 
         for _var in self.varlist:
             assert (_var in data.keys()), "Error: {0} not found in data".format(_var)
@@ -160,6 +190,7 @@ class outputTec:
         else:
             assert False
 
+        print "Writing file: " + str(ndat).zfill(4) + self.suffix
         exec ('tecout.tecoutput(' + str(ndat) + ',' + gridvar + ',' +
               self.varstring + ')')
 
