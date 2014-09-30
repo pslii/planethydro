@@ -47,6 +47,9 @@ class gridReader:
         else:
             self.r_sph = self.r
 
+        self.rPlot = np.vstack((self.r,) * self.nztot).transpose()
+        self.zPlot = np.vstack((self.z,) * self.nxtot)
+
     def xDist(self, xp):
         return self.x - xp
 
@@ -55,6 +58,9 @@ class gridReader:
 
     def zDist(self, zp):
         return self.z - zp
+
+    def plotCoordsRZ(self):
+        return self.rPlot, self.zPlot
 
     def plotCoords(self, phi, ndims=2):
         (x_edge, y_edge), z_edge = self._rotate(self.x_edge[2:-3, 2:-2],
