@@ -155,7 +155,7 @@ def processData(path='.', n_start=1, n_skip=1):
         data['vr'], data['vphi'] = data['u'], vPl
         data['vKep'] = vKep
         data['vx'], data['vy'] = processor.calcVelocities(data['u'], vPl)
-        output.writeNDat(n_dat, data, processor.phiPlanet())
+        output.writeCylindrical(n_dat, data, processor.phiPlanet())
 
 
         # output 1D averages
