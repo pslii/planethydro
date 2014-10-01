@@ -46,9 +46,15 @@ class dataReader:
         assert (len(fmtlist) == len(varlist))
         self.unpackList, self.fmtlist, self.varlist = \
             self._computeUnpack(fmtlist, varlist)
+        self.nvars = len(self.varlist)
 
     def __call__(self, ndat):
         return self.readData(ndat)
+
+    def _printProgress(self, progress, total):
+        percentage = int(progress * 100.0 / total)
+        percentage_bar = ('=' * (percentage / 5)).ljust(20)
+        print '\r[{0}] {1}%'.format(percentage_bar, percentage),
 
     def _computeUnpack(self, fmtlist, varlist):
         """
@@ -124,18 +130,20 @@ class dataReader:
         t0 = time.time()
         assert (isinstance(ndat, int))
         fname = str(ndat).zfill(n_digits) + suffix
-        print "Reading {0}...".format(fname)
+        print "Reading {0}...".format(fname),
 
         data, metadata = {}, {}
         with open(self.path + '/' + fname, 'rb') as datfile:
             binary = datfile.read()
-            for unpack, varname in zip(self.unpackList, self.varlist):
+
+            for count, (unpack, varname) in enumerate(zip(self.unpackList, self.varlist)):
                 if verbose: print "Parsing {0}".format(varname)
                 var = self._readVar(binary, unpack)
                 if isinstance(var, np.ndarray) and len(var) > 1:
                     data[varname] = var
                 else:
                     metadata[varname] = var[0]
+                self._printProgress(count, self.nvars)
         t1 = time.time()
         if verbose: print "Read time: {0}".format(t1 - t0)
         if legacy:

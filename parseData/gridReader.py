@@ -47,8 +47,20 @@ class gridReader:
         else:
             self.r_sph = self.r
 
-        self.rPlot = np.vstack((self.r,) * self.nztot).transpose()
-        self.zPlot = np.vstack((self.z,) * self.nxtot)
+        self.rPlot = np.vstack((self.r_edge[2:-3],) * self.nztot).transpose()
+        self.zPlot = np.vstack((self.z_edge[2:-3],) * self.nxtot)
+
+        # TODO: find more efficient method to generate these
+        self.r2D = np.vstack((self.r,) * self.nytot).transpose()  # rphi
+        self.phi2D = np.vstack((self.phi,) * self.nxtot)  # rphi
+        self.z2D = np.vstack((self.z[:, np.newaxis].transpose(),) * self.nxtot)  # rz
+        if self.ndims == 3:
+            self.r3D = np.dstack((self.r2D,) * self.nztot)
+            self.phi3D = np.dstack((self.phi2D,) * self.nztot)
+            zZPhi = np.vstack((self.z[:, np.newaxis].transpose(),) * self.nytot).transpose()
+            self.z3D = np.dstack((zZPhi,) * self.nytot).transpose()
+        else:
+            self.r3D, self.phi3D, self.z3D = None, None, None
 
     def xDist(self, xp):
         return self.x - xp
