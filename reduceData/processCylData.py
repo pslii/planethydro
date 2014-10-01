@@ -11,7 +11,7 @@ from ..tecOutput import tecOutput
 __author__ = 'Patrick'
 
 
-def processCylData():
+def processCylData(verbose=False):
     params, grid, dataReader = parseData.initialize()
     start, end, num = tecOutput.detectData()
 
@@ -33,7 +33,7 @@ def processCylData():
         sigma0 = reduce0.sigma(asp_ratio=0.03)
 
     for ndat in range(start, end):
-        data = dataReader.readData(ndat, legacy=False)
+        data = dataReader.readData(ndat, legacy=False, verbose=verbose)
         process = reduceCylData(grid, params, data)
         if ndat == 0:
             data0 = data

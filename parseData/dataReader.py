@@ -44,17 +44,23 @@ class dataReader:
 
         # precompute binary indices
         assert (len(fmtlist) == len(varlist))
-        self.unpackList, self.fmtlist, self.varlist = \
+        self.unpackList, self.fmtlist, self.varlist, self.fileSize = \
             self._computeUnpack(fmtlist, varlist)
-        self.nvars = len(self.varlist)
+
 
     def __call__(self, ndat):
         return self.readData(ndat)
 
-    def _printProgress(self, progress, total):
+    def _progressbar(self, fname, progress, total):
+        """
+        Note: need to set -u flag in python call for this to work properly
+        :param progress:
+        :param total:
+        :return:
+        """
         percentage = int(progress * 100.0 / total)
-        percentage_bar = ('=' * (percentage / 5)).ljust(20)
-        print '\r[{0}] {1}%'.format(percentage_bar, percentage),
+        percentage_bar = ('=' * (percentage / 2)).ljust(50)
+        print '\rReading {0}: [{1}] {2}%'.format(fname, percentage_bar, percentage),
 
     def _computeUnpack(self, fmtlist, varlist):
         """
@@ -75,7 +81,8 @@ class dataReader:
                 formats.append('<' + fmt[0] * block_size)
                 starts.append(start)
                 ends.append(end)
-        return zip(starts, ends, formats), fmtlist_out, varlist_out
+        sizes = np.array(ends) - np.array(starts)
+        return zip(starts, sizes, formats), fmtlist_out, varlist_out, sizes.sum()
 
     @staticmethod
     def getByteSize(c):
@@ -90,11 +97,8 @@ class dataReader:
             print "Error: invalid character format"
             assert False
 
-    def _readVar(self, binary, (start, end, fmt)):
-        """
-        Unpacks an individual variable from the Fortran binary file.
-        """
-        unpack = struct.unpack(fmt, binary[start:end])
+    def _repack(self, fmt, binary):
+        unpack = struct.unpack(fmt, binary)
         if len(unpack) > 1:
             var = np.empty(self.grid.shape)
             unpack = np.reshape(unpack, self.block_shape)
@@ -123,34 +127,36 @@ class dataReader:
             var = unpack
         return var
 
-    def readData(self, ndat, suffix='dat', n_digits=4, verbose=False, legacy=True):
-        """
-        Parses an unformatted Fortran binary file
-        """
+    def readData(self, ndat, suffix="dat", n_digits=4, verbose=False, legacy=False):
         t0 = time.time()
-        assert (isinstance(ndat, int))
         fname = str(ndat).zfill(n_digits) + suffix
-        print "Reading {0}...".format(fname),
-
         data, metadata = {}, {}
-        with open(self.path + '/' + fname, 'rb') as datfile:
-            binary = datfile.read()
+        bytesRead = 0
+        self._progressbar(fname, bytesRead, self.fileSize)
 
-            for count, (unpack, varname) in enumerate(zip(self.unpackList, self.varlist)):
-                if verbose: print "Parsing {0}".format(varname)
-                var = self._readVar(binary, unpack)
+        with open(self.path + '/' + fname, 'rb') as datfile:
+            for ((start, size, fmt), varname) in zip(self.unpackList, self.varlist):
+                datfile.seek(start)
+                binary = datfile.read(size)
+                var = self._repack(fmt, binary)
+
                 if isinstance(var, np.ndarray) and len(var) > 1:
+                    assert var.shape == self.grid.shape
                     data[varname] = var
                 else:
                     metadata[varname] = var[0]
-                self._printProgress(count, self.nvars)
+                bytesRead += size
+                self._progressbar(fname, bytesRead, self.fileSize)
+            print ""
         t1 = time.time()
-        if verbose: print "Read time: {0}".format(t1 - t0)
+
+        if verbose:
+            print "Read time: {0}".format(t1 - t0)
+
         if legacy:
             return data, metadata
         else:
             return SimData(self.grid, data, metadata)
-
 
 class SimData(object):
     def __init__(self, grid, data_dict, metadata_dict):
