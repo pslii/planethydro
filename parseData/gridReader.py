@@ -51,16 +51,32 @@ class gridReader:
         self.zPlot = np.vstack((self.z_edge[2:-3],) * self.nxtot)
 
         # TODO: find more efficient method to generate these
-        self.r2D = np.vstack((self.r,) * self.nytot).transpose()  # rphi
-        self.phi2D = np.vstack((self.phi,) * self.nxtot)  # rphi
-        self.z2D = np.vstack((self.z[:, np.newaxis].transpose(),) * self.nxtot)  # rz
+        self.r2D, self.phi2D, self.z2D = self._grid2d(self.r, self.phi, self.z)
+        self.dr2D, self.dphi2D, self.dz2D = self._grid2d(self.dr, self.dphi, self.dz)
         if self.ndims == 3:
-            self.r3D = np.dstack((self.r2D,) * self.nztot)
-            self.phi3D = np.dstack((self.phi2D,) * self.nztot)
-            zZPhi = np.vstack((self.z[:, np.newaxis].transpose(),) * self.nytot).transpose()
-            self.z3D = np.dstack((zZPhi,) * self.nytot).transpose()
+            self.r3D, self.phi3D, self.z3D = self._grid3d(self.r2D, self.phi2D, self.z)
+            self.dr3D, self.dphi3D, self.dz3D = self._grid3d(self.dr2D, self.dphi2D, self.dz)
+            self.dV3D = self.r3D * self.dr3D * self.dphi3D * self.dz3D
         else:
             self.r3D, self.phi3D, self.z3D = None, None, None
+            self.dr3D, self.dphi3D, self.dz3D = None, None, None
+            self.dV3D = None
+
+    def _grid2d(self, r, phi, z):
+        r2D = np.vstack((r,) * self.nytot).transpose()  # rphi
+        phi2D = np.vstack((phi,) * self.nxtot)  # rphi
+        z2D = np.vstack((z[:, np.newaxis].transpose(),) * self.nxtot)  # rz
+        return r2D, phi2D, z2D
+
+    def _grid3d(self, r2D, phi2D, z):
+        r3D = np.dstack((r2D,) * self.nztot)
+        phi3D = np.dstack((phi2D,) * self.nztot)
+        zZPhi = np.vstack((z[:, np.newaxis].transpose(),) * self.nytot).transpose()  # zphi
+        z3D = np.dstack((zZPhi,) * self.nxtot).transpose()
+        return r3D, phi3D, z3D
+
+
+
 
     def xDist(self, xp):
         return self.x - xp
