@@ -23,17 +23,52 @@ class reduceCylData:
         self.data = data
         self.grid = grid
         self.params = params
+        self.rhoXZ = None
 
-    def get1D(self, arr, asp_ratio=None):
+    def get1D(self, arr, threshold=None):
         """
         Returns 1D distribution.
         :param arr:
-        :param asp_ratio:
+        :param threshold:
         :return:
         """
-        return utility.azAverage(self.grid, self.diskAverage(arr, asp_ratio=asp_ratio))
+        return utility.azAverage(self.grid, self.diskAverage(arr, threshold))
 
-    def diskAverage(self, arr, asp_ratio=None):
+    def diskFlatten(self, arr):
+        """
+        \int arr dz
+        Integrates array in z direction
+        :param arr: array to be integrated
+        :return: 2D vertically integrated array
+        """
+        return (arr * self.grid.dz3D).sum(axis=2)
+
+    def diskAverage(self, arr, rhoThreshold):
+        """
+        Takes a height average of array in z direction,
+        using threshold density as cutoff for disk height
+        :param arr: array to be averaged
+        :param rhoThreshold:  threshold density
+        :return: 2D, z-averaged array
+        """
+        if rhoThreshold is None:
+            rhoThreshold = self.params.get('rho_disk') / 10.0
+
+        outputArr = np.zeros((self.grid.nxtot, self.grid.nytot))
+        if self.rhoXZ is None:
+            self.rhoXZ = utility.azAverage(self.grid, self.data.rho)
+
+        for i in range(self.grid.nxtot):
+            intRange = np.where(self.rhoXZ[i, :] >= rhoThreshold)[0]
+            if intRange.shape[0] == 0: continue
+
+            subArr = arr[i, :, intRange]
+            dz = self.grid.dz[intRange]
+            zrange = dz.sum()
+            outputArr[i, :] = np.dot(subArr.transpose(), dz) / zrange
+        return outputArr
+
+    def diskAverageAsp(self, arr, asp_ratio=None):
         """
         Vertically averages the given array over the height of the disk (given an aspect ratio).
         Otherwise, simply averages over the entire height of the simulation region.
@@ -47,6 +82,7 @@ class reduceCylData:
             asp_ratio = self.params['asp_ratio'] if asp_ratio is None else asp_ratio
             H = self.grid.r * asp_ratio
             outputArr = np.zeros((self.grid.nxtot, self.grid.nytot))
+
             for i in range(self.grid.nxtot):
                 intRange = np.where((self.grid.z <= H[i]) & (self.grid.z >= -H[i]))[0]
                 if intRange.shape == (0,): continue
@@ -59,32 +95,42 @@ class reduceCylData:
             outputArr = utility.integrateZ(self.grid, arr)
         return outputArr
 
-    def sigma(self, asp_ratio=None):
-        return self.diskAverage(self.data.rho, asp_ratio=asp_ratio)
+    def eps(self):
+        if self.params.get('eps') is None:
+            return self.params.get('asp_ratio') * self.params.get('smooth_ratio') * self.params.get('sax_init')
+        else:
+            return self.params.get('eps')
 
-    def pi(self, asp_ratio=None):
-        return self.diskAverage(self.data.p, asp_ratio=asp_ratio)
+    def sigma(self):
+        sigma1D = (self.data.rho * self.grid.dz3D * self.grid.dphi3D).sum(axis=1) / (2.0 * np.pi)
+        sigma1D = sigma1D.sum(axis=1)
+        return self.diskFlatten(self.data.rho), sigma1D
 
-    def vPhi(self, asp_ratio=None):
-        return self.diskAverage(self.data.v, asp_ratio=asp_ratio)
+    def pi(self):
+        return self.diskFlatten(self.data.p)
 
-    def rhoPertb(self, zavg=False):
+    def vPhi(self, rhoThreshold=None):
+        return self.diskAverage(self.data.v, rhoThreshold)
+
+    def sigmaPertb(self):
+        sigma, _ = self.sigma()
+        sigma_avg = (sigma * self.grid.phi2D).sum(axis=1)
+        return sigma - sigma_avg[:, np.newaxis]
+
+    def rhoPertb(self, rhoThreshold=None):
         azAvg = utility.azAverage(self.grid, self.data.rho)
         rho_pertb = self.data.rho - azAvg[:, np.newaxis, :]
-        if zavg:
-            return self.diskAverage(rho_pertb)
-        else:
-            return rho_pertb
+        return self.diskAverage(rho_pertb, rhoThreshold)
 
-    def _zTorque(self, rho, zavg):
+    def _zTorque(self, rho, zavg=True, rhoThreshold=None):
         GM_p = self.params['gm_p']
         xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
-        r = self.grid.distance(xp, yp, zp)
+        r = np.sqrt(self.grid.distance(xp, yp, zp) ** 2 + self.eps() ** 2)
         force = -GM_p * rho / r ** 3
         rpr = (xp * self.grid.yDist(yp) - yp * self.grid.xDist(xp))  # r_p cross r
         torque = force * np.dstack((rpr,) * self.grid.nztot)
         if zavg:
-            return self.diskAverage(torque)
+            return self.diskAverage(torque, rhoThreshold)
         else:
             return torque
 
@@ -108,3 +154,16 @@ class reduceCylData:
         dist = np.sqrt((self.grid.x - self.data.xp) ** 2 + (self.grid.y - self.data.yp) ** 2)
         lr[np.where(dist < .1)] = -1.0
         return lr
+
+    def oortB(self):
+        """
+        Computes Oort's second constant:
+        B = 1/(2r) d(r^2 \Omega)/dr
+        = r/2 (3 v_phi + r dv_phi/dr)
+        """
+        r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
+        r_out = (self.grid.r_edge[-1] + self.grid.r_edge[-2]) / 2.0
+        dvphidr = utility.centralDiff3D(self.grid, self.data.v,
+                                        arr_start=np.sqrt(1.0 / r_in),
+                                        arr_end=np.sqrt(1.0 / r_out))
+        return (3.0 * self.data.v + self.grid.r3D * dvphidr) * self.grid.r3D / 2.0
