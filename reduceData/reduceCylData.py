@@ -113,29 +113,31 @@ class reduceCylData:
         return self.diskAverage(self.data.v, rhoThreshold)
 
     def sigmaPertb(self):
-        sigma, _ = self.sigma()
-        sigma_avg = (sigma * self.grid.phi2D).sum(axis=1)
-        return sigma - sigma_avg[:, np.newaxis]
+        sigma, sigma1D = self.sigma()
+        return sigma - sigma1D[:, np.newaxis]
 
     def rhoPertb(self, rhoThreshold=None):
         azAvg = utility.azAverage(self.grid, self.data.rho)
         rho_pertb = self.data.rho - azAvg[:, np.newaxis, :]
-        return self.diskAverage(rho_pertb, rhoThreshold)
+        return rho_pertb
 
-    def _zTorque(self, rho, zavg=True, rhoThreshold=None):
+    def _zTorque(self, rho, zavg=True, rhoThreshold=None, plot=False):
         GM_p = self.params['gm_p']
         xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
         r = np.sqrt(self.grid.distance(xp, yp, zp) ** 2 + self.eps() ** 2)
         force = -GM_p * rho / r ** 3
         rpr = (xp * self.grid.yDist(yp) - yp * self.grid.xDist(xp))  # r_p cross r
+        if plot:
+            rpr = -np.abs(-rpr)
+
         torque = force * np.dstack((rpr,) * self.grid.nztot)
         if zavg:
             return self.diskAverage(torque, rhoThreshold)
         else:
             return torque
 
-    def zTorque(self, zavg=False):
-        return self._zTorque(self.data.rho, zavg)
+    def zTorque(self, zavg=False, plot=False):
+        return self._zTorque(self.data.rho, zavg, plot=plot)
 
     def lindbladRes(self):
         """

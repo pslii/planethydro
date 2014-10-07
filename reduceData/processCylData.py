@@ -23,7 +23,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
         asciiheader = 'variables = ' + ','.join(varlist1D)
 
     if 'xy' in outputs:
-        varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'pi', 'torque', 'torque_i', 'vphi', 'LR']
+        varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid', 'pi', 'torque', 'torque_i', 'vphi', 'LR']
         tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
 
     if 'xz' in outputs:
@@ -69,9 +69,10 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
             # noinspection PyUnboundLocalVariable
             output_dict['sigma_i'] = output_dict['sigma'] - sigma0
             output_dict['sigma_pertb'] = process.sigmaPertb()
+            output_dict['rho_mid'] = data.rho[:, :, grid.nztot / 2]
             output_dict['pi'] = process.pi()
-            output_dict['torque'] = process.zTorque(zavg=True)
-            output_dict['torque_i'] = output_dict['torque'] - process._zTorque(data0.rho, zavg=True)
+            output_dict['torque'] = process.zTorque(zavg=True, plot=True)
+            output_dict['torque_i'] = output_dict['torque'] - process._zTorque(data0.rho, zavg=True, plot=True)
             output_dict['vphi'] = process.vPhi()
             output_dict['LR'] = process.lindbladRes()
 
