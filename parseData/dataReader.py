@@ -173,6 +173,7 @@ class SimData(object):
             assert self.shape == value.shape, "Error: shape mismatch."
 
         self.rho, self.p, self.s = data_dict.get('rho'), data_dict.get('p'), data_dict.get('s')
+        self.temp = self.p / self.rho
         self.u, self.v, self.w = data_dict.get('u'), data_dict.get('v'), data_dict.get('w')
         self.data = data_dict
 
