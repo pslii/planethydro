@@ -47,6 +47,13 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
             reduce0 = process
             sigma0, _ = reduce0.sigma()
 
+        """
+        m = data.rho*grid.r3D*grid.dr3D*grid.dphi3D*grid.dz3D
+        import numpy as np
+        m_interior = m[np.where(grid.r < params['r_gap'])[0],:,:].sum()
+        print m_interior, m.sum()
+        """
+
         # process 3D data
         if 'xyz' in outputs:
             output_dict = {'rho': data.rho,
@@ -85,6 +92,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
 
             output_dict = {'r': grid.r,
                            'sigma_avg': sigma1d,
+                           'rho_mid': data.rho[:, 0, grid.nztot / 2],
                            'torque_avg': torque_avg,
                            'vphi_avg': vphi_avg}
             df = pd.DataFrame(output_dict, columns=varlist1D)
