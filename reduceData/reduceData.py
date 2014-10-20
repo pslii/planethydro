@@ -97,7 +97,9 @@ class reduceData:
         """
         Computes Oort's second constant:
         B = 1/(2r) d(r^2 \Omega)/dr
-        = r/2 (3 v_phi + r dv_phi/dr)
+        = r/2 (v_phi + r dv_phi/dr)
+
+        WRONG!!!
         """
         vphi = self.data['v']
         r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
@@ -105,7 +107,7 @@ class reduceData:
         dvphidr = centralDiff(self.grid, vphi,
                               arr_start=np.sqrt(1.0 / r_in),
                               arr_end=np.sqrt(1.0 / r_out))
-        terms = 3 * vphi + colMul(self.grid.r, dvphidr)
+        terms = vphi + colMul(self.grid.r, dvphidr)
         return colMul(self.grid.r / 2.0, terms)
 
     def vortensity(self):
