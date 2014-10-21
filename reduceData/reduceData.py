@@ -111,6 +111,12 @@ class reduceData:
         return colMul(self.grid.r / 2.0, terms)
 
     def vortensity(self):
+        """
+        \Sigma * dlog(\Sigma/B)/dr = \Sigma * dlogR/dr * dlog(\Sigma/B)/dlogR
+        -> dlog(\Sigma/B)/dlogR = (dlog(\Sigma/B)/dr) / (dlogR/dr) = r * dlog(\Sigma/B)/dr
+        :return: \Sigma * r * dlog(\Sigma/B)/dr
+        """
+
         sigma, vphi = self.data['rho'], self.data['v']
         r = self.grid.r
         logB = np.log(self.oortB())
