@@ -19,11 +19,12 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
         start, end = datarange
 
     if 'x' in outputs:
-        varlist1D = ['r', 'sigma_avg', 'vphi_avg', 'torque_avg']
+        varlist1D = ['r', 'sigma_avg', 'vphi_avg', 'torque_avg', 'vort_avg']
         asciiheader = 'variables = ' + ','.join(varlist1D)
 
     if 'xy' in outputs:
-        varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid', 'pi', 'torque', 'torque_i', 'vphi', 'LR']
+        varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid',
+                     'pi', 'torque', 'torque_i', 'vphi', 'LR', 'vort_grad']
         tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
 
     if 'xz' in outputs:
@@ -82,6 +83,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
             output_dict['torque_i'] = output_dict['torque'] - process._zTorque(data0.rho, zavg=True, plot=True)
             output_dict['vphi'] = process.vPhi()
             output_dict['LR'] = process.lindbladRes()
+            output_dict['vort_grad'] = process.midplane_vortensity()
 
             tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet)
 
@@ -89,11 +91,13 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
             # process 1D data
             torque_avg = azAverage(grid, process.zTorque(zavg=True))
             vphi_avg = azAverage(grid, process.vPhi())
+            vort_avg = azAverage(grid, process.midplane_vortensity())
 
             output_dict = {'r': grid.r,
                            'sigma_avg': sigma1d,
                            'rho_mid': data.rho[:, 0, grid.nztot / 2],
                            'torque_avg': torque_avg,
+                           'vort_avg': vort_avg,
                            'vphi_avg': vphi_avg}
             df = pd.DataFrame(output_dict, columns=varlist1D)
             fname = str(ndat).zfill(4) + 'cut.dat'
