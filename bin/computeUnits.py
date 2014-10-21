@@ -12,7 +12,6 @@ c_RGAS = c_kBoltzmann / c_MH  # erg/ K g
 M_stars = np.array([1, 1, 1, .53, .49, 2.11]) * c_MSUN
 R_gaps = np.array([5 * c_AU, c_AU, 0.1 * c_AU, 8.0 * c_RSUN, 6.4 * c_RSUN, 3.2 * c_RSUN])
 
-
 # parameters
 print "$M_*$ [$M_\sun$] & $r_{gap}$ & $v_0$ [km/s] &" \
       " $\Sigma_0$ [g/$cm^2$] & $T_0$ [K] & $P_0$ [days] & $\Omega_0$ [$s^{-1}$] \\\\"
