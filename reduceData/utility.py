@@ -93,20 +93,37 @@ def colMul(x, arr):
     return np.dot(np.diag(x), arr)
 
 
+def centralDiff3D(grid, arr, arr_start=None, arr_end=None):
+    """
+    :type grid: planetHydro.parseData.gridReader.gridReader
+    :return:
+    """
+    if arr_start is None:
+        arr_start = (None,) * arr.shape[2]
+    if arr_end is None:
+        arr_end = (None,) * arr.shape[2]
+
+    out = np.empty(grid.shape)
+    for i in range(grid.nztot):
+        out[:, :, i] = centralDiff(grid, arr[:, :, i], arr_start=arr_start[i], arr_end=arr_end[i])
+    return out
+
+
+def extrapolate(x, (x0, y0), (x1, y1)):
+    return (y1 - y0) / (x1 - x0) * (x - x0) + y0
+
+
 def centralDiff(grid, arr, arr_start=None, arr_end=None):
     """
     Takes derivative in r direction using central difference method.
+    :type grid: planetHydro.parseData.gridReader.gridReader
     """
-    dr = grid.dr
+    r = (grid.r_edge[1:] + grid.r_edge[:-1]) / 2.0
+    dr = (r[2:] - r[:-2])[1:-1]  # NOTE: this is dr1+dr2, not regular dr
 
-    if arr_start is None: arr_start = arr[0]
-    if arr_end is None: arr_end = arr[-1]
-    nxtot, nytot = arr.shape
-    f1 = np.vstack((np.ones(nytot) * arr_start, arr[:-1, :]))
-    f2 = np.vstack((arr[1:, :], np.ones(nytot) * arr_end))
-
-    dx1 = np.hstack((dr[0], dr[:-1]))
-    dx2 = np.hstack((dr[1:], dr[-1]))
-    dx = 1.0 / (dx1 + dx2)
-
-    return colMul(dx, f2 - f1)
+    if arr_start is None: arr_start = extrapolate(r[1], (grid.r[0], arr[0, :]), (grid.r[1], arr[1, :]))
+    if arr_end is None: arr_end = extrapolate(r[-2], (grid.r[-2], arr[-2, :]), (grid.r[-1], arr[-1, :]))
+    _, nytot = arr.shape
+    f1 = np.vstack((np.ones(nytot) * arr_start, arr[:-1, :]))  # f(r_i-1)
+    f2 = np.vstack((arr[1:, :], np.ones(nytot) * arr_end))  # f(r_i+1)
+    return colMul(1.0 / dr, f2 - f1)
