@@ -161,11 +161,26 @@ class reduceCylData:
         """
         Computes Oort's second constant:
         B = 1/(2r) d(r^2 \Omega)/dr
-        = r/2 (3 v_phi + r dv_phi/dr)
+        = 1/(2r) * [v_phi + r dv_phi/dr]
         """
         r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
-        r_out = (self.grid.r_edge[-1] + self.grid.r_edge[-2]) / 2.0
+        r_out = (self.grid.r_edge[-2] + self.grid.r_edge[-3]) / 2.0
         dvphidr = utility.centralDiff3D(self.grid, self.data.v,
-                                        arr_start=np.sqrt(1.0 / r_in),
-                                        arr_end=np.sqrt(1.0 / r_out))
-        return (3.0 * self.data.v + self.grid.r3D * dvphidr) * self.grid.r3D / 2.0
+                                        arr_start=(np.sqrt(1.0 / r_in),) * self.grid.nztot,
+                                        arr_end=(np.sqrt(1.0 / r_out),) * self.grid.nztot)
+        return (self.data.v + self.grid.r3D * dvphidr) / (2 * self.grid.r3D)
+
+    def midplane_vortensity(self):
+        """
+        \Sigma * dlog(\Sigma/B)/dr = \Sigma * dlogR/dr * dlog(\Sigma/B)/dlogR
+        -> dlog(\Sigma/B)/dlogR = (dlog(\Sigma/B)/dr) / (dlogR/dr) = r * dlog(\Sigma/B)/dr
+        :return: \Sigma * r * dlog(\Sigma/B)/dr
+        """
+        (Sigma, _), B = self.sigma(), (self.oortB())[:, :, self.grid.nztot / 2]
+
+        logSigmaB = np.log(Sigma / B)
+        dlogSigmaBdr = utility.centralDiff(self.grid, logSigmaB)
+
+        return Sigma * self.grid.r2D * dlogSigmaBdr
+
+
