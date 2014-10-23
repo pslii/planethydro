@@ -1,6 +1,6 @@
 import numpy as np
 
-from planetHydro.reduceData import utility
+from . import utility
 
 __author__ = 'pslii'
 

@@ -1,6 +1,6 @@
-from planetHydro.parseData.dataReader import dataReader
-from planetHydro.parseData.gridReader import gridReader
-from planetHydro.parseData.readParams import readParams
+from .dataReader import dataReader
+from .gridReader import gridReader
+from .readParams import readParams
 
 __author__ = 'pslii'
 

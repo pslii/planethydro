@@ -1,6 +1,6 @@
 import numpy as np
 
-from planetHydro.reduceData.utility import azAverage, colMul, centralDiff2D
+from .utility import azAverage, colMul, centralDiff2D
 
 
 __author__ = 'pslii'

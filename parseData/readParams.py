@@ -1,7 +1,7 @@
 import re
 import string
 
-from planetHydro.parseData.dataReader import _sandbox
+from .dataReader import _sandbox
 
 
 __author__ = 'pslii'
