@@ -1,6 +1,6 @@
 import numpy as np
 
-from planetHydro.reduceData.utility import azAverage, colMul, centralDiff
+from planetHydro.reduceData.utility import azAverage, colMul, centralDiff2D
 
 
 __author__ = 'pslii'
@@ -104,7 +104,7 @@ class reduceData:
         vphi = self.data['v']
         r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
         r_out = (self.grid.r_edge[-1] + self.grid.r_edge[-2]) / 2.0
-        dvphidr = centralDiff(self.grid, vphi,
+        dvphidr = centralDiff2D(self.grid, vphi,
                               arr_start=np.sqrt(1.0 / r_in),
                               arr_end=np.sqrt(1.0 / r_out))
         terms = vphi + colMul(self.grid.r, dvphidr)
@@ -122,8 +122,8 @@ class reduceData:
         logB = np.log(self.oortB())
         logSigma = np.log(sigma)
 
-        dlogB = colMul(r, centralDiff(self.grid, logB))
-        dlogSigma = colMul(r, centralDiff(self.grid, logSigma))
+        dlogB = colMul(r, centralDiff2D(self.grid, logB))
+        dlogSigma = colMul(r, centralDiff2D(self.grid, logSigma))
         return sigma * dlogB, sigma * dlogSigma, sigma * (dlogSigma - dlogB)
 
     def omega(self):
@@ -132,7 +132,7 @@ class reduceData:
             omega = colMul(self.grid.r, self.data['v'])
             r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
             r_out = (self.grid.r_edge[-1] + self.grid.r_edge[-2]) / 2.0
-            domega = centralDiff(self.grid, omega,
+            domega = centralDiff2D(self.grid, omega,
                                  arr_start=-1.5 * np.sqrt(GM / r_in ** 5),
                                  arr_end=-1.5 * np.sqrt(GM / r_out ** 5))
             self.omega_arr, self.domega_arr = omega, domega
