@@ -37,8 +37,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         tecOut3D = tecOutput.outputTec(varlist3D, grid, outDim='xyz', output=True, suffix='xyz')
 
     if 'time' in outputs:
-        varlistTime = ['ndat', 'time', 'sax', 'r_gap']
-        timeDict = {'ndat': [], 'time': [], 'sax': [], 'r_gap': []}
+        varlistTime = ['time', 'sax', 'r_gap']
+        timeDict = {'time': [], 'sax': [], 'r_gap': []}
         timeheader = 'variables = ' + ','.join(varlistTime)
 
     if start > 0:
@@ -114,7 +114,6 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
         if 'time' in outputs:
             # compute time series data
-            timeDict['ndat'].append(data.ndat)
             timeDict['time'].append(data.time)
             sax, ecc, incl = process.orb_elements()
             timeDict['sax'].append(sax)
