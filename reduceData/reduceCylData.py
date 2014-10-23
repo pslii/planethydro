@@ -102,6 +102,11 @@ class reduceCylData:
             return self.params.get('eps')
 
     def sigma(self):
+        """
+        Calculate surface density and azimuthally averaged surface density.
+        \int \rho dz, \int \int \rho dphi dz / 2 \pi
+        :return: sigma, sigma1d
+        """
         sigma1D = (self.data.rho * self.grid.dz3D * self.grid.dphi3D).sum(axis=1) / (2.0 * np.pi)
         sigma1D = sigma1D.sum(axis=1)
         return self.diskFlatten(self.data.rho), sigma1D
@@ -175,12 +180,43 @@ class reduceCylData:
         \Sigma * dlog(\Sigma/B)/dr = \Sigma * dlogR/dr * dlog(\Sigma/B)/dlogR
         -> dlog(\Sigma/B)/dlogR = (dlog(\Sigma/B)/dr) / (dlogR/dr) = r * dlog(\Sigma/B)/dr
         :return: \Sigma * r * dlog(\Sigma/B)/dr
+        :rtype: np.ndarray
         """
         (Sigma, _), B = self.sigma(), (self.oortB())[:, :, self.grid.nztot / 2]
 
         logSigmaB = np.log(Sigma / B)
-        dlogSigmaBdr = utility.centralDiff(self.grid, logSigmaB)
+        dlogSigmaBdr = utility.centralDiff2D(self.grid, logSigmaB)
 
         return Sigma * self.grid.r2D * dlogSigmaBdr
 
+    def orb_elements(self):
+        GM = self.params.get('gm')
+        xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
+        up, vp, wp = self.data.up, self.data.vp, self.data.wp
+
+        rp = np.sqrt(xp**2+yp**2+zp**2)
+        energy = 0.5 * (up**2+vp**2+wp**2) - GM/rp
+
+        angmomx = yp*wp-zp*vp
+        angmomy = zp*up-xp*wp
+        angmomz = xp*vp-yp*up
+        angmom = np.sqrt(angmomx**2+angmomy**2+angmomz**2)
+
+        sax = -0.5 * GM / energy
+        ecc = 1.0-angmom**2/(GM*sax)
+        ecc = np.sqrt(ecc) if ecc >= 0 else 0
+
+        incl = np.arccos(angmomz/angmom) * 180 / np.pi
+
+        return sax, ecc, incl
+
+
+    def disk_boundary(self):
+        """
+        Finds the interior edge of the disk using derivative of sigma.
+        :return: float
+        """
+        _, sigma1d = self.sigma()
+        dsdr = utility.centralDiff1D(self.grid, sigma1d)
+        return self.grid.r[dsdr.argmax()]
 

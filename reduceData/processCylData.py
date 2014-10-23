@@ -1,17 +1,17 @@
 #!/home/marina/envs/planet/bin/python
 
 import pandas as pd
-
 from .. import parseData
 from .reduceCylData import reduceCylData
 from .utility import azAverage
 from ..tecOutput import tecOutput
+import numpy as np
 
 
 __author__ = 'Patrick'
 
 
-def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), verbose=False):
+def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'], datarange=(None, None), verbose=False):
     params, grid, dataReader = parseData.initialize()
     if (datarange[0] is None) | (datarange[1] is None):
         start, end, _ = tecOutput.detectData()
@@ -34,6 +34,11 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
     if 'xyz' in outputs:
         varlist3D = ['rho', 'rho_i', 'rho_pertb']
         tecOut3D = tecOutput.outputTec(varlist3D, grid, outDim='xyz', output=True, suffix='xyz')
+
+    if 'time' in outputs:
+        varlistTime = ['ndat', 'time', 'sax', 'r_gap']
+        timeDict = {'ndat': [], 'time': [], 'sax': [], 'r_gap': []}
+        timeheader = 'variables = ' + ','.join(varlistTime)
 
     if start > 0:
         data0 = dataReader.readData(0, legacy=False)
@@ -105,3 +110,20 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz'], datarange=(None, None), ver
             with open(fname, 'w') as fout:
                 fout.write(asciiheader + '\n')
                 df.to_csv(fout, index=False, header=False, sep='\t')
+
+        if 'time' in outputs:
+            # compute time series data
+            timeDict['ndat'].append(data.ndat)
+            timeDict['time'].append(data.time)
+            sax, ecc, incl = process.orb_elements()
+            timeDict['sax'].append(sax)
+            timeDict['r_gap'].append(process.disk_boundary())
+
+    if 'time' in outputs:
+        df = pd.DataFrame(timeDict, columns=varlistTime)
+        with open('time.dat', 'w') as fout:
+            fout.write(timeheader + '\n')
+            df.to_csv(fout, index=False, header=False, sep='\t')
+
+
+
