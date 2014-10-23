@@ -11,8 +11,9 @@ import numpy as np
 __author__ = 'Patrick'
 
 
-def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'], datarange=(None, None), verbose=False):
-    params, grid, dataReader = parseData.initialize()
+def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
+                   datarange=(None, None), verbose=False, hydro=True):
+    params, grid, dataReader = parseData.initialize(hydro=hydro)
     if (datarange[0] is None) | (datarange[1] is None):
         start, end, _ = tecOutput.detectData()
     else:

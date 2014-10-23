@@ -14,6 +14,15 @@ class dataReader:
                        'sax', 'incl', 'ecc',
                        'xn', 'yn', 'zn',
                        'up', 'vp', 'wp']
+    VARLIST_HYDRO = ['rho', 'p', 's',
+                     '_', '_', '_',
+                     'u', 'v', 'w',
+                     '_', '_', '_',
+                     'time', 'ndat', 'it', 'tau', 'zdisk',
+                     'sax', 'incl', 'ecc',
+                     'xn', 'yn', 'zn',
+                     'up', 'vp', 'wp']
+
     FMTLIST_DEFAULT = ['darr', 'darr', 'darr', 'darr',
                        'darr', 'darr', 'darr', 'darr',
                        'darr', 'darr', 'darr', 'darr',
