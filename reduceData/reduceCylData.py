@@ -4,7 +4,6 @@ from . import utility
 
 __author__ = 'pslii'
 
-
 class reduceCylData:
     def __init__(self, grid, params, data):
         """
@@ -171,7 +170,6 @@ class reduceCylData:
         r_in = (self.grid.r_edge[1] + self.grid.r_edge[2]) / 2.0
         r_out = (self.grid.r_edge[-2] + self.grid.r_edge[-3]) / 2.0
         dvphidr = utility.centralDiff3D(self.grid, self.data.v,
-                                        arr_start=(np.sqrt(1.0 / r_in),) * self.grid.nztot,
                                         arr_end=(np.sqrt(1.0 / r_out),) * self.grid.nztot)
         return (self.data.v + self.grid.r3D * dvphidr) / (2 * self.grid.r3D)
 
@@ -183,11 +181,10 @@ class reduceCylData:
         :rtype: np.ndarray
         """
         (Sigma, _), B = self.sigma(), (self.oortB())[:, :, self.grid.nztot / 2]
-
-        logSigmaB = np.log(Sigma / B)
-        dlogSigmaBdr = utility.centralDiff2D(self.grid, logSigmaB)
-
-        return Sigma * self.grid.r2D * dlogSigmaBdr
+        dlogBdr =  utility.centralDiff2D(self.grid, B)/B
+        dlogSigmadr = utility.centralDiff2D(self.grid, Sigma)/Sigma
+        dlogSigmaBdr = Sigma * self.grid.r2D * (dlogSigmadr-dlogBdr)
+        return dlogSigmaBdr
 
     def orb_elements(self):
         GM = self.params.get('gm')
