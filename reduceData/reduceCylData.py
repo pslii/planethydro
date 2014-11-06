@@ -140,6 +140,39 @@ class reduceCylData:
         else:
             return torque
 
+    def r_hill(self):
+        """
+        Compute the Hill radius of the planet.
+        :return:
+        """
+        sax, ecc, incl = self.orb_elements()
+        GM_p, GM = self.params.get('gm_p'), self.params.get('gm')
+        return sax * (1.0-ecc) * (GM_p/ (3.0 * GM))**(1.0/3.0)
+
+    def resonance_torques(self, spacing=1.5):
+        """
+        Calculate torques from various resonances.
+        :return: LR torque, corotation torque
+        """
+        r = self.grid.r
+        r_p, r_hill = self.data.rp, self.r_hill()
+        torque = self.zTorque()
+
+        i_ILR = (r_p-spacing*r_hill)<=r
+        i_OLR = (r_p+spacing*r_hill)>=r
+        i_COR = (r>(r_p-spacing*r_hill)) & (r<(r_p+spacing*r_hill))
+
+        integrate = lambda x, y : (((x[y,:,:] * self.grid.dz).sum(2)
+                                    * self.grid.dphi).sum(1)
+                                    * self.grid.r[y] * self.grid.dr[y]).sum()
+
+        ILR_Torque = integrate(torque, i_ILR)
+        OLR_Torque = integrate(torque, i_OLR)
+        Cor_Torque = integrate(torque, i_COR)
+        return ILR_Torque, OLR_Torque, Cor_Torque, \
+               ILR_Torque+OLR_Torque, \
+               ILR_Torque+OLR_Torque+Cor_Torque
+
     def zTorque(self, zavg=False, plot=False):
         return self._zTorque(self.data.rho, zavg, plot=plot)
 
@@ -207,13 +240,16 @@ class reduceCylData:
 
         return sax, ecc, incl
 
-
     def disk_boundary(self):
         """
-        Finds the interior edge of the disk using derivative of sigma.
+        Finds the interior edge of the disk using several different methods:
+        1. derivative of sigma
+        2. density threshold
+
         :return: float
         """
         _, sigma1d = self.sigma()
         dsdr = utility.centralDiff1D(self.grid, sigma1d)
-        return self.grid.r[dsdr.argmax()]
+        i_thresh = np.where(sigma1d >= (sigma1d.max()/2.0))[0][0]
+        return self.grid.r[dsdr.argmax()], self.grid.r[i_thresh]
 

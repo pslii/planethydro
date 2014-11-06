@@ -29,7 +29,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
 
     if 'xz' in outputs:
-        varlist2Dxz = ['rho', 'p', 'vr', 'vphi', 'vz']
+        varlist2Dxz = ['rho', 'p', 'T', 'vr', 'vphi', 'vz']
         tecOutXZ = tecOutput.outputTec(varlist2Dxz, grid, outDim='xz', output=True, suffix='xz')
 
     if 'xyz' in outputs:
@@ -37,8 +37,10 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         tecOut3D = tecOutput.outputTec(varlist3D, grid, outDim='xyz', output=True, suffix='xyz')
 
     if 'time' in outputs:
-        varlistTime = ['time', 'sax', 'r_gap']
-        timeDict = {'time': [], 'sax': [], 'r_gap': []}
+        varlistTime = ['time', 'sax', 'r_gap_sigma', 'r_gap_thresh',
+                       'ILR_torque', 'OLR_torque', 'LR_torque',
+                       'COR_torque', 'torque_tot']
+        timeDict = {k: [] for k in varlistTime}
         timeheader = 'variables = ' + ','.join(varlistTime)
 
     if start > 0:
@@ -72,6 +74,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         if 'xz' in outputs:
             output_dict = {'rho': data.rho[:, 0, :],
                            'p': data.p[:, 0, :],
+                           'T': data.p[:, 0, :]/data.rho[:, 0, :],
                            'vr': data.u[:, 0, :],
                            'vphi': data.v[:, 0, :],
                            'vz': data.w[:, 0, :]}
@@ -114,10 +117,18 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
         if 'time' in outputs:
             # compute time series data
-            timeDict['time'].append(data.time)
+            timeDict['time'].append(data.time/params.get('period'))
             sax, ecc, incl = process.orb_elements()
             timeDict['sax'].append(sax)
-            timeDict['r_gap'].append(process.disk_boundary())
+            r_gap_sigma, r_gap_thresh = process.disk_boundary()
+            timeDict['r_gap_sigma'].append(r_gap_sigma)
+            timeDict['r_gap_thresh'].append(r_gap_thresh)
+            ilr, olr, cor, lrtot, tot = process.resonance_torques()
+            timeDict['ILR_torque'].append(ilr)
+            timeDict['OLR_torque'].append(olr)
+            timeDict['LR_torque'].append(lrtot)
+            timeDict['COR_torque'].append(cor)
+            timeDict['torque_tot'].append(tot)
 
     if 'time' in outputs:
         df = pd.DataFrame(timeDict, columns=varlistTime)

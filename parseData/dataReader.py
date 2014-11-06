@@ -209,6 +209,10 @@ class SimData(object):
         self.data[key] = value
 
     @property
+    def rp(self):
+        return np.sqrt(self.xp**2 + self.yp**2 + self.zp**2)
+
+    @property
     def phiPlanet(self):
         return np.arctan2(self.yp, self.xp) + 0.5 * np.pi
 
