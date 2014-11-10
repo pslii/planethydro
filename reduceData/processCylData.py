@@ -43,10 +43,13 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         timeDict = {k: [] for k in varlistTime}
         timeheader = 'variables = ' + ','.join(varlistTime)
 
+
+    i_disk = np.where(grid.r >= params.get('r_gap'))[0][0]
     if start > 0:
         data0 = dataReader.readData(0, legacy=False)
         reduce0 = reduceCylData(grid, params, data0)
-        sigma0, _ = reduce0.sigma()
+        sigma0, sigma1d = reduce0.sigma()
+        sigma_disk = sigma1d[i_disk]
 
     for ndat in range(start, end):
         data = dataReader.readData(ndat, legacy=False, verbose=verbose)
@@ -55,6 +58,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             data0 = data
             reduce0 = process
             sigma0, _ = reduce0.sigma()
+            sigma0, sigma1d = reduce0.sigma()
+            sigma_disk = sigma1d[i_disk]
 
         """
         m = data.rho*grid.r3D*grid.dr3D*grid.dphi3D*grid.dz3D
@@ -120,7 +125,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             timeDict['time'].append(data.time/params.get('period'))
             sax, ecc, incl = process.orb_elements()
             timeDict['sax'].append(sax)
-            r_gap_sigma, r_gap_thresh = process.disk_boundary()
+            r_gap_sigma, r_gap_thresh = process.disk_boundary(sigma_disk=sigma_disk)
             timeDict['r_gap_sigma'].append(r_gap_sigma)
             timeDict['r_gap_thresh'].append(r_gap_thresh)
             ilr, olr, cor, lrtot, tot = process.resonance_torques()

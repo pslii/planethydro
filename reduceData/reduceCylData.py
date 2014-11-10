@@ -240,16 +240,21 @@ class reduceCylData:
 
         return sax, ecc, incl
 
-    def disk_boundary(self):
+    def disk_boundary(self, sigma_disk=None):
         """
         Finds the interior edge of the disk using several different methods:
         1. derivative of sigma
-        2. density threshold
-
+        2. density threshold based on max or initial sigma
         :return: float
         """
         _, sigma1d = self.sigma()
         dsdr = utility.centralDiff1D(self.grid, sigma1d)
-        i_thresh = np.where(sigma1d >= (sigma1d.max()/2.0))[0][0]
-        return self.grid.r[dsdr.argmax()], self.grid.r[i_thresh]
+
+        if not (sigma_disk is None):
+            i_thresh = np.where(sigma1d >= sigma_disk)[0][0]
+        else:
+            i_thresh = np.where(sigma1d >= (sigma1d.max()/2.0))[0][0]
+
+        return self.grid.r[dsdr.argmax()], \
+               self.grid.r[i_thresh]
 
