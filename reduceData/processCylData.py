@@ -4,8 +4,10 @@ import pandas as pd
 from .. import parseData
 from .reduceCylData import reduceCylData
 from .utility import azAverage
+from .utility import polar_plot
 from ..tecOutput import tecOutput
 import numpy as np
+import os
 
 
 __author__ = 'Patrick'
@@ -36,6 +38,11 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         varlist3D = ['rho', 'rho_i', 'rho_pertb']
         tecOut3D = tecOutput.outputTec(varlist3D, grid, outDim='xyz', output=True, suffix='xyz')
 
+    if 'png' in outputs:
+        if not (os.path.isdir('./png')):
+            print("Creating directory png")
+            os.mkdir('png')
+
     if 'time' in outputs:
         varlistTime = ['time', 'sax', 'r_gap_sigma', 'r_gap_thresh',
                        'ILR_torque', 'OLR_torque', 'LR_torque',
@@ -44,7 +51,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         timeheader = 'variables = ' + ','.join(varlistTime)
 
 
-    i_disk = np.where(grid.r >= params.get('r_gap'))[0][0]
+    i_disk = np.where(grid.r > params.get('r_gap'))[0][0]
     if start > 0:
         data0 = dataReader.readData(0, legacy=False)
         reduce0 = reduceCylData(grid, params, data0)
@@ -52,7 +59,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         sigma_disk = sigma1d[i_disk]
 
     for ndat in range(start, end):
-        data = dataReader.readData(ndat, legacy=False, verbose=verbose)
+        data = dataReader.readData(ndat, legacy=False)
         process = reduceCylData(grid, params, data)
         if ndat == 0:
             data0 = data
@@ -119,6 +126,13 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             with open(fname, 'w') as fout:
                 fout.write(asciiheader + '\n')
                 df.to_csv(fout, index=False, header=False, sep='\t')
+
+        if 'png' in outputs:
+            print "Generating png..."
+            polar_plot(grid, params, data.rp, data.phiPlanet,
+                                 sigma, save='png/sigma_'+str(ndat).zfill(4))
+            polar_plot(grid, params, data.rp, data.phiPlanet,
+                                 data.rho[:,:,grid.nztot/2], save='png/rho_'+str(ndat).zfill(4))
 
         if 'time' in outputs:
             # compute time series data
