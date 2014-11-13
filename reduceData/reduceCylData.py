@@ -158,8 +158,8 @@ class reduceCylData:
         r_p, r_hill = self.data.rp, self.r_hill()
         torque = self.zTorque()
 
-        i_ILR = (r_p-spacing*r_hill)<=r
-        i_OLR = (r_p+spacing*r_hill)>=r
+        i_ILR = r<=(r_p-spacing*r_hill)
+        i_OLR = r>=(r_p+spacing*r_hill)
         i_COR = (r>(r_p-spacing*r_hill)) & (r<(r_p+spacing*r_hill))
 
         integrate = lambda x, y : (((x[y,:,:] * self.grid.dz).sum(2)
