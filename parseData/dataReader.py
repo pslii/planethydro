@@ -1,6 +1,7 @@
 import numpy as np
 import struct
 import time
+import matplotlib.pyplot as plt
 
 __author__ = 'pslii'
 
@@ -55,7 +56,6 @@ class dataReader:
         assert (len(fmtlist) == len(varlist))
         self.unpackList, self.fmtlist, self.varlist, self.fileSize = \
             self._computeUnpack(fmtlist, varlist)
-
 
     def __call__(self, ndat):
         return self.readData(ndat)
@@ -136,7 +136,7 @@ class dataReader:
             var = unpack
         return var
 
-    def readData(self, ndat, suffix="dat", n_digits=4, verbose=False, legacy=False):
+    def readData(self, ndat, suffix="dat", n_digits=4, legacy=False):
         t0 = time.time()
         fname = str(ndat).zfill(n_digits) + suffix
         data, metadata = {}, {}
@@ -156,11 +156,8 @@ class dataReader:
                     metadata[varname] = var[0]
                 bytesRead += size
                 self._progressbar(fname, bytesRead, self.fileSize)
-            print ""
         t1 = time.time()
-
-        if verbose:
-            print "Read time: {0}".format(t1 - t0)
+        print " {:.2f} s".format(t1-t0)
 
         if legacy:
             return data, metadata
