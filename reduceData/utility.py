@@ -7,13 +7,7 @@ __author__ = 'pslii'
 
 def polar_plot(grid, params, rp, phi_p, array, save=None):
     # Generate the mesh
-    r, phi = grid.r_edge[2:-2], grid.phi_edge[2:-2]
-    phi_grid, r_grid = np.meshgrid(phi, r)
-    x0, y0 = r_grid*np.cos(phi_grid), r_grid*np.sin(phi_grid)
-
-    phi_rot = phi_p
-    x, y = x0 * np.cos(phi_rot) + y0 * np.sin(phi_rot), \
-           y0 * np.cos(phi_rot) - x0 * np.sin(phi_rot)
+    x, y = grid.meshCoords(phi_p)
 
     # Plot
     fig, ax = plt.subplots(figsize=(6,6), dpi=300, frameon=False, tight_layout=True)
@@ -33,9 +27,9 @@ def polar_plot(grid, params, rp, phi_p, array, save=None):
     circles.append(plt.Circle((0, 0), rp, fill=False, lw=0.5, color='r'))
     for m in xrange(1,4):
         circles.append(plt.Circle((0, -rp), radius=m*r_hill, color='r', fill=False, lw=.5))
-    for m in np.arange(1,4):
+    for m in np.arange(1.0,4.0):
         circles.append(plt.Circle((0,0), radius=rp*(m/(m+1.0))**(2.0/3.0), color='g', fill=False, lw=.5))
-    for m in np.arange(2,4):
+    for m in np.arange(2.0,4.0):
         circles.append(plt.Circle((0,0), radius=rp*(m/(m-1.0))**(2.0/3.0), color='g', fill=False, lw=.5))
     [ax.add_artist(circle) for circle in circles]
 

@@ -76,8 +76,6 @@ class gridReader:
         return r3D, phi3D, z3D
 
 
-
-
     def xDist(self, xp):
         return self.x - xp
 
@@ -89,6 +87,15 @@ class gridReader:
 
     def plotCoordsRZ(self):
         return self.rPlot, self.zPlot
+
+    def meshCoords(self, phi_p):
+        r, phi = self.r_edge[2:-2], self.phi_edge[2:-2]
+        phi_grid, r_grid = np.meshgrid(phi, r)
+        x0, y0 = r_grid*np.cos(phi_grid), r_grid*np.sin(phi_grid)
+
+        x, y = x0 * np.cos(phi_p) + y0 * np.sin(phi_p), \
+               y0 * np.cos(phi_p) - x0 * np.sin(phi_p)
+        return x, y
 
     def plotCoords(self, phi, ndims=2):
         (x_edge, y_edge), z_edge = self._rotate(self.x_edge[2:-3, 2:-2],
