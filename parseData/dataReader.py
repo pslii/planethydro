@@ -7,6 +7,10 @@ __author__ = 'pslii'
 
 
 class dataReader:
+    """
+    Parses Fortran binaries into Numpy arrays.
+    """
+
     VARLIST_DEFAULT = ['rho', 'p', 's',
                        'hr', 'hf', 'hz',
                        'u', 'v', 'w',
@@ -51,7 +55,6 @@ class dataReader:
             self.block_shape = (self.nblocks, self.ny + 4, self.nx + 4)
         self.block_size = np.prod(self.block_shape)
 
-
         # precompute binary indices
         assert (len(fmtlist) == len(varlist))
         self.unpackList, self.fmtlist, self.varlist, self.fileSize = \
@@ -62,6 +65,9 @@ class dataReader:
 
     def _progressbar(self, fname, progress, total):
         """
+        Outputs a progressbar.
+        Reading 0039dat: [==================================================] 100%
+
         Note: need to set -u flag in python call for this to work properly
         :param progress:
         :param total:
@@ -73,7 +79,7 @@ class dataReader:
 
     def _computeUnpack(self, fmtlist, varlist):
         """
-        Computes start and end indices of arrays/values
+        Computes start and end indices of arrays/values in the binary file.
         """
         fmtlist_out, varlist_out = [], []
         formats, starts, ends = [], [], []
