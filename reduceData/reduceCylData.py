@@ -132,7 +132,7 @@ class reduceCylData:
         force = -GM_p * rho / r ** 3
         rpr = (xp * self.grid.yDist(yp) - yp * self.grid.xDist(xp))  # r_p cross r
         if plot:
-            rpr = -np.abs(-rpr)
+            rpr = -np.abs(rpr)
 
         torque = force * np.dstack((rpr,) * self.grid.nztot)
         if zavg:
@@ -149,7 +149,7 @@ class reduceCylData:
         GM_p, GM = self.params.get('gm_p'), self.params.get('gm')
         return sax * (1.0-ecc) * (GM_p/ (3.0 * GM))**(1.0/3.0)
 
-    def resonance_torques(self, spacing=1.5):
+    def resonance_torques(self, spacing=3):
         """
         Calculate torques from various resonances.
         :return: LR torque, corotation torque
@@ -157,6 +157,9 @@ class reduceCylData:
         r = self.grid.r
         r_p, r_hill = self.data.rp, self.r_hill()
         torque = self.zTorque()
+
+        i_in = r<(r_p)
+        i_out = r>=(r_p)
 
         i_ILR = r<=(r_p-spacing*r_hill)
         i_OLR = r>=(r_p+spacing*r_hill)
@@ -169,9 +172,12 @@ class reduceCylData:
         ILR_Torque = integrate(torque, i_ILR)
         OLR_Torque = integrate(torque, i_OLR)
         Cor_Torque = integrate(torque, i_COR)
+        in_Torque = integrate(torque, i_in)
+        out_Torque = integrate(torque, i_out)
         return ILR_Torque, OLR_Torque, Cor_Torque, \
                ILR_Torque+OLR_Torque, \
-               ILR_Torque+OLR_Torque+Cor_Torque
+               ILR_Torque+OLR_Torque+Cor_Torque, \
+               in_Torque, out_Torque
 
     def zTorque(self, zavg=False, plot=False):
         return self._zTorque(self.data.rho, zavg, plot=plot)
@@ -205,6 +211,10 @@ class reduceCylData:
         dvphidr = utility.centralDiff3D(self.grid, self.data.v,
                                         arr_end=(np.sqrt(1.0 / r_out),) * self.grid.nztot)
         return (self.data.v + self.grid.r3D * dvphidr) / (2 * self.grid.r3D)
+
+    def vortensity(self):
+        (Sigma, _), B = self.sigma(), (self.oortB())[:, :, self.grid.nztot / 2]
+        return B/Sigma
 
     def midplane_vortensity(self):
         """

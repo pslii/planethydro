@@ -27,7 +27,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     if 'xy' in outputs:
         varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid',
-                     'pi', 'torque', 'torque_i', 'vphi', 'LR', 'vort_grad']
+                     'pi', 'torque', 'torque_i', 'vphi', 'LR',
+                     'vortensity', 'vort_grad']
         tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
 
     if 'xz' in outputs:
@@ -45,6 +46,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     if 'time' in outputs:
         varlistTime = ['time', 'sax', 'r_gap_sigma', 'r_gap_thresh',
+                       'in_torque', 'out_torque',
                        'ILR_torque', 'OLR_torque', 'LR_torque',
                        'COR_torque', 'torque_tot']
         timeDict = {k: [] for k in varlistTime}
@@ -104,6 +106,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             output_dict['torque_i'] = output_dict['torque'] - process._zTorque(data0.rho, zavg=True, plot=True)
             output_dict['vphi'] = process.vPhi()
             output_dict['LR'] = process.lindbladRes()
+            output_dict['vortensity'] = process.vortensity()
             output_dict['vort_grad'] = process.midplane_vortensity()
 
             tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet)
@@ -142,7 +145,9 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             r_gap_sigma, r_gap_thresh = process.disk_boundary(sigma_disk=sigma_disk)
             timeDict['r_gap_sigma'].append(r_gap_sigma)
             timeDict['r_gap_thresh'].append(r_gap_thresh)
-            ilr, olr, cor, lrtot, tot = process.resonance_torques()
+            ilr, olr, cor, lrtot, tot, in_torque, out_torque = process.resonance_torques()
+            timeDict['in_torque'].append(in_torque)
+            timeDict['out_torque'].append(out_torque)
             timeDict['ILR_torque'].append(ilr)
             timeDict['OLR_torque'].append(olr)
             timeDict['LR_torque'].append(lrtot)
