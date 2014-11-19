@@ -14,7 +14,6 @@ def polar_plot(grid, params, rp, phi_p, array, save=None):
 
     normalize = colors.PowerNorm(2, vmin=array.min(), vmax=array.max())
 
-
     ax.set_aspect('equal', 'datalim', 'C')
     ax.set_xlim(-1, 1)
     ax.set_ylim(-3, -0.5)
@@ -25,8 +24,10 @@ def polar_plot(grid, params, rp, phi_p, array, save=None):
 
     circles = []
     circles.append(plt.Circle((0, 0), rp, fill=False, lw=0.5, color='r'))
-    for m in xrange(1,4):
+    for m in [1,3]:
         circles.append(plt.Circle((0, -rp), radius=m*r_hill, color='r', fill=False, lw=.5))
+        circles.append(plt.Circle((0, 0), radius=(rp-m * r_hill), color='r', ls='dashed', fill=False, lw=0.5))
+        circles.append(plt.Circle((0, 0), radius=(rp+m * r_hill), color='r', ls='dashed', fill=False, lw=0.5))
     for m in np.arange(1.0,4.0):
         circles.append(plt.Circle((0,0), radius=rp*(m/(m+1.0))**(2.0/3.0), color='g', fill=False, lw=.5))
     for m in np.arange(2.0,4.0):
