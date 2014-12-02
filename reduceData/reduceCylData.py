@@ -125,11 +125,12 @@ class reduceCylData:
         rho_pertb = self.data.rho - azAvg[:, np.newaxis, :]
         return rho_pertb
 
-    def _zTorque(self, rho, zavg=True, rhoThreshold=None, plot=False):
-        GM_p = self.params['gm_p']
+
+    def _zTorque(self, rho, zavg=True, rhoThreshold=0.0, plot=False):
+        GM, GM_p = self.params['gm'], self.params['gm_p']
         xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
-        r = np.sqrt(self.grid.distance(xp, yp, zp) ** 2 + self.eps() ** 2)
-        force = -GM_p * rho / r ** 3
+        r = np.sqrt(self.grid.distance(xp, yp, zp) ** 2.0 + self.eps() ** 2.0)
+        force = -GM_p * rho / r ** 3.0
         rpr = (xp * self.grid.yDist(yp) - yp * self.grid.xDist(xp))  # r_p cross r
         if plot:
             rpr = -np.abs(rpr)
@@ -140,14 +141,43 @@ class reduceCylData:
         else:
             return torque
 
-    def r_hill(self):
+    def r_hill(self, circular_orbit=False):
         """
         Compute the Hill radius of the planet.
         :return:
         """
         sax, ecc, incl = self.orb_elements()
         GM_p, GM = self.params.get('gm_p'), self.params.get('gm')
-        return sax * (1.0-ecc) * (GM_p/ (3.0 * GM))**(1.0/3.0)
+        if circular_orbit:
+            return sax * (GM_p/ (3.0 * GM))**(1.0/3.0)
+        else:
+            return sax * (1.0-ecc) * (GM_p/ (3.0 * GM))**(1.0/3.0)
+
+    def cs(self):
+        """
+        :return: Sound speed in simulation region
+        """
+        gamma = self.params.get('gam')
+        return np.sqrt(gamma * self.data.p/self.data.rho)
+
+    def omega(self):
+        return (self.data.v.transpose() * self.grid.r).transpose()
+
+    def toomre_q(self):
+        k_mid = self.grid.nztot/2
+        cs, omega = self.cs()[:,:,k_mid], self.omega()[:,:,k_mid]
+        sigma, _ = self.sigma()
+        return cs * omega / (np.pi * sigma)
+
+    def m_disk(self):
+        """
+        :return: The disk mass
+        """
+        rho = self.data.rho
+        rho_xy = (rho * self.grid.dz).sum(axis=2)
+        rho_x  = (rho_xy * self.grid.dphi).sum(axis=1)
+        m = (rho_x * self.grid.r * self.grid.dr).sum(axis=0)
+        return m
 
     def resonance_torques(self, spacing=3):
         """
@@ -155,7 +185,8 @@ class reduceCylData:
         :return: LR torque, corotation torque
         """
         r = self.grid.r
-        r_p, r_hill = self.data.rp, self.r_hill()
+
+        r_p, r_hill = self.data.rp, self.r_hill(circular_orbit=True)
         torque = self.zTorque()
 
         i_in = r<(r_p)
