@@ -116,6 +116,19 @@ class reduceCylData:
     def vPhi(self, rhoThreshold=None):
         return self.diskAverage(self.data.v, rhoThreshold)
 
+    def calcVelocities(self, phi_pl=None):
+        k_mid = self.grid.nztot/2
+        u, v = [x[:,:,k_mid] for x in [self.data.u, self.data.v]]
+        if phi_pl is None:
+            phi_pl = self.data.phiPlanet
+        omega_pl = self.data.omegaPlanet
+        v -= omega_pl * self.grid.r[:, np.newaxis]
+
+        phi_grid = self.grid.phi - phi_pl
+        vx = u * np.cos(phi_grid) - v * np.sin(phi_grid)
+        vy = u * np.sin(phi_grid) + v * np.cos(phi_grid)
+        return vx, vy
+
     def sigmaPertb(self):
         sigma, sigma1D = self.sigma()
         return sigma - sigma1D[:, np.newaxis]

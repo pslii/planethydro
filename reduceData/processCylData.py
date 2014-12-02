@@ -16,10 +16,23 @@ __author__ = 'Patrick'
 def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
                    datarange=(None, None), verbose=False, hydro=True):
     params, grid, dataReader = parseData.initialize(hydro=hydro)
-    if (datarange[0] is None) | (datarange[1] is None):
-        start, end, _ = tecOutput.detectData()
-    else:
-        start, end = datarange
+
+    start, end = datarange
+
+    startNone, endNone = start is None, end is None
+    start_detect, end_detect, _ = tecOutput.detectData()
+    if startNone and endNone: # process all files
+        start, end = start_detect, end_detect
+    elif startNone & (not endNone): # start at 0 and process up to specified file
+        start = 0
+    elif (not startNone) & endNone: # process only 1 file
+        end = start+1
+    elif (not startNone) & (not endNone):
+        end = end+1
+
+    end = min(end, end_detect)
+    assert start >= start_detect, 'Error: starting ndat must be positive.'
+    assert end > start, 'Error: ending ndat must be greater than starting ndat.'
 
     if 'x' in outputs:
         varlist1D = ['r', 'sigma_avg', 'vphi_avg', 'torque_avg', 'vort_avg']
@@ -27,7 +40,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     if 'xy' in outputs:
         varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid',
-                     'pi', 'torque', 'torque_i', 'vphi', 'LR',
+                     'pi', 'torque', 'torque_i', 'torque_pertb', 'realtorque',
+                     'vphi', 'vx', 'vy', 'LR',
                      'vortensity', 'vort_grad']
         tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
 
@@ -45,10 +59,10 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             os.mkdir('png')
 
     if 'time' in outputs:
-        varlistTime = ['time', 'sax', 'r_gap_sigma', 'r_gap_thresh',
+        varlistTime = ['time', 'sax', 'rp', 'r_gap_sigma', 'r_gap_thresh',
                        'in_torque', 'out_torque',
                        'ILR_torque', 'OLR_torque', 'LR_torque',
-                       'COR_torque', 'torque_tot']
+                       'COR_torque', 'torque_tot', 'm_disk']
         timeDict = {k: [] for k in varlistTime}
         timeheader = 'variables = ' + ','.join(varlistTime)
 
@@ -60,7 +74,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         sigma0, sigma1d = reduce0.sigma()
         sigma_disk = sigma1d[i_disk]
 
-    for ndat in range(start, end):
+    for ndat in xrange(start, end):
         data = dataReader.readData(ndat, legacy=False)
         process = reduceCylData(grid, params, data)
         if ndat == 0:
@@ -95,15 +109,24 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             tecOutXZ.writeRZ(ndat, output_dict)
 
         sigma, sigma1d = process.sigma()
+        realtorque = process.zTorque(zavg=True, plot=False)
+        torque_avg = azAverage(grid, realtorque)
+
         if 'xy' in outputs:
+            torque = process.zTorque(zavg=True, plot=True)
+            torque0 = process._zTorque(data0.rho, zavg=True, plot=True)
+
             output_dict = {'sigma': sigma}
             # noinspection PyUnboundLocalVariable
             output_dict['sigma_i'] = output_dict['sigma'] - sigma0
             output_dict['sigma_pertb'] = process.sigmaPertb()
             output_dict['rho_mid'] = data.rho[:, :, grid.nztot / 2]
             output_dict['pi'] = process.pi()
-            output_dict['torque'] = process.zTorque(zavg=True, plot=True)
-            output_dict['torque_i'] = output_dict['torque'] - process._zTorque(data0.rho, zavg=True, plot=True)
+            output_dict['torque'] = torque
+            output_dict['realtorque'] = realtorque
+            output_dict['torque_pertb'] = (realtorque.transpose() - torque_avg).transpose()
+            output_dict['torque_i'] = output_dict['torque'] - torque0
+            output_dict['vx'], output_dict['vy'] = process.calcVelocities()
             output_dict['vphi'] = process.vPhi()
             output_dict['LR'] = process.lindbladRes()
             output_dict['vortensity'] = process.vortensity()
@@ -113,7 +136,6 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
         if 'x' in outputs:
             # process 1D data
-            torque_avg = azAverage(grid, process.zTorque(zavg=True))
             vphi_avg = azAverage(grid, process.vPhi())
             vort_avg = azAverage(grid, process.midplane_vortensity())
 
@@ -142,6 +164,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             timeDict['time'].append(data.time/params.get('period'))
             sax, ecc, incl = process.orb_elements()
             timeDict['sax'].append(sax)
+            timeDict['rp'].append(data.rp)
             r_gap_sigma, r_gap_thresh = process.disk_boundary(sigma_disk=sigma_disk)
             timeDict['r_gap_sigma'].append(r_gap_sigma)
             timeDict['r_gap_thresh'].append(r_gap_thresh)
@@ -153,6 +176,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             timeDict['LR_torque'].append(lrtot)
             timeDict['COR_torque'].append(cor)
             timeDict['torque_tot'].append(tot)
+            timeDict['m_disk'].append(process.m_disk())
 
     if 'time' in outputs:
         df = pd.DataFrame(timeDict, columns=varlistTime)
