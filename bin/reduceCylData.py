@@ -14,6 +14,7 @@ def main(argv):
     for opt, arg in opts:
         if opt == '-h':
             print "reduceCylData -h --all --x --xy --xz --xyz --png --time"
+            print "default: x, xy, time, png"
             sys.exit()
         elif opt == "--x":
             output.append('x')
@@ -30,7 +31,7 @@ def main(argv):
         elif opt == "--all":
             output = ['x', 'xz', 'xy', 'xyz', 'time', 'png']
     if len(output) == 0:
-        output = ['x', 'xy', 'xz', 'xyz', 'time']
+        output = ['x', 'xy', 'time', 'png']
     processCylData(output, verbose=False)
 
 
