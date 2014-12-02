@@ -224,6 +224,35 @@ class SimData(object):
         return (self.vp * self.xp - self.up * self.yp) / (self.xp ** 2 + self.yp ** 2)
 
 
+    def planetPos(self, frame='planet'):
+        xn, yn, zn = self.xp, self.yp, self.zp
+        up, vp, wp = self.up, self.vp, self.wp
+
+        if frame == 'disk':
+            o_syst = 0.0
+            phi_syst = 0.0
+        elif frame == 'planet':
+            o_syst = self.omegaPlanet
+            phi_syst = self.phiPlanet
+        elif frame == 'inertial':
+            GM, time, r0 = self.get('gm'), self.get('time'), self.get('r_gap')
+            o_syst = -np.sqrt(GM / r0**3)
+            phi_syst = o_syst * time
+        else:
+            print "Invalid frame selected."
+            assert False
+        xp = xn * np.cos(phi_syst) + yn * np.sin(phi_syst)
+        yp = xn * np.cos(phi_syst) + yn * np.sin(phi_syst)
+        zp = xn * np.cos(phi_syst) + yn * np.sin(phi_syst)
+
+        ui = up - o_syst * yn
+        vi = vp + o_syst * xn
+        up = ui * np.cos(phi_syst) + vi * np.sin(phi_syst)
+        vp = vi * np.cos(phi_syst) - ui * np.sin(phi_syst)
+        wp = wp
+        return (xp, yp, zp), (up, vp, wp)
+
+
 def _sandbox(evallist):
     """
     Takes in list of variables, evaluates them and returns a dict
