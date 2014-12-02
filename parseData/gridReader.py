@@ -44,10 +44,11 @@ class gridReader:
         if self.ndims == 3:
             self.r_sph = np.sqrt(np.tile(self.r ** 2, (self.nztot, 1)) + \
                                  np.tile(self.z ** 2, (self.nxtot, 1)).transpose())
+            self.rPlot = np.vstack((self.r_edge[2:-3],) * self.nztot).transpose()
         else:
             self.r_sph = self.r
+            self.rPlot = self.r_edge[2:-3]
 
-        self.rPlot = np.vstack((self.r_edge[2:-3],) * self.nztot).transpose()
         self.zPlot = np.vstack((self.z_edge[2:-3],) * self.nxtot)
 
         # TODO: find more efficient method to generate these
