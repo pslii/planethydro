@@ -40,7 +40,7 @@ class reduceCylData:
         :param arr: array to be integrated
         :return: 2D vertically integrated array
         """
-        return (arr * self.grid.dz3D).sum(axis=2)
+        return (arr * self.grid.dz[np.newaxis, np.newaxis, :]).sum(axis=2)
 
     def diskAverage(self, arr, rhoThreshold):
         """
@@ -106,9 +106,9 @@ class reduceCylData:
         \int \rho dz, \int \int \rho dphi dz / 2 \pi
         :return: sigma, sigma1d
         """
-        sigma1D = (self.data.rho * self.grid.dz3D * self.grid.dphi3D).sum(axis=1) / (2.0 * np.pi)
-        sigma1D = sigma1D.sum(axis=1)
-        return self.diskFlatten(self.data.rho), sigma1D
+        sigma = self.diskFlatten(self.data.rho) 
+        sigma1D = (sigma * self.grid.dphi[np.newaxis, :]).sum(1)/(2*np.pi)
+        return sigma, sigma1D
 
     def pi(self):
         return self.diskFlatten(self.data.p)
@@ -137,9 +137,55 @@ class reduceCylData:
         azAvg = utility.azAverage(self.grid, self.data.rho)
         rho_pertb = self.data.rho - azAvg[:, np.newaxis, :]
         return rho_pertb
+    
+    def force(self):
+        """
+        Computes the total force on the disk.
+        """
+        rho = self.data.rho
+        GM, GM_p = self.params['gm'], self.params['gm_p']
+        xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
+        r_sph = np.sqrt(self.grid.r3D**2 + self.grid.z3D**2)
 
+        x, y, z = self.grid.x[:,:,np.newaxis], \
+            self.grid.y[:,:,np.newaxis], \
+            self.grid.z[np.newaxis,np.newaxis,:]
+
+        # stellar term
+        fs = -GM / r_sph**3
+        fs_x, fs_y, fs_z = (fs * rho * q for q in (x, y, z))
+
+        # planet term
+        rrp = self.grid.distance(xp, yp, zp) # r-rp
+        fp = -GM_p / (rrp**2 + self.eps()**2)**(3.0/2.0)
+        fp_x, fp_y, fp_z = (fp * rho * q for q in ((x-xp), (y-yp), (z-zp)))
+        
+        # non-inertial term
+        fi = -GM_p / np.sqrt(xp**2 + yp**2 + zp**2)**3
+        fi_x, fi_y, fi_z = (fi * rho * q for q in (xp, yp, zp))
+
+        # total
+        ftot_x = fp_x + fi_x + fs_x
+        ftot_y = fp_y + fi_y + fs_y
+        ftot_z = fp_z + fi_z + fs_z
+
+        torque_x = y * ftot_z - z * ftot_y
+        torque_y = z * ftot_x - x * ftot_z
+        torque_z = x * ftot_y - y * ftot_x
+        
+        tovec = lambda q : [self.grid.integrate(vec) for vec in utility.cart2cyl(self.grid, q)]
+        
+        fs = tovec((fs_x, fs_y, fs_z))
+        fp = tovec((fp_x, fp_y, fp_z))
+        fi = tovec((fi_x, fi_y, fi_z))
+        ftot = tovec((ftot_x, ftot_y, ftot_z))
+        
+        return  fs, fp, fi, ftot, (torque_x, torque_y, torque_z)
 
     def _zTorque(self, rho, zavg=True, rhoThreshold=0.0, plot=False):
+        """
+        Computes torque from the disk.
+        """
         GM, GM_p = self.params['gm'], self.params['gm_p']
         xp, yp, zp = self.data.xp, self.data.yp, self.data.zp
         r = np.sqrt(self.grid.distance(xp, yp, zp) ** 2.0 + self.eps() ** 2.0)
@@ -200,7 +246,7 @@ class reduceCylData:
         r = self.grid.r
 
         r_p, r_hill = self.data.rp, self.r_hill(circular_orbit=True)
-        torque = self.zTorque()
+        fs, fp, fi, ftot, (_, _, torque) = self.force()
 
         i_in = r<(r_p)
         i_out = r>=(r_p)
@@ -218,10 +264,11 @@ class reduceCylData:
         Cor_Torque = integrate(torque, i_COR)
         in_Torque = integrate(torque, i_in)
         out_Torque = integrate(torque, i_out)
-        return ILR_Torque, OLR_Torque, Cor_Torque, \
-               ILR_Torque+OLR_Torque, \
-               ILR_Torque+OLR_Torque+Cor_Torque, \
-               in_Torque, out_Torque
+        return fs, fp, fi, ftot, \
+            ILR_Torque, OLR_Torque, Cor_Torque, \
+            ILR_Torque+OLR_Torque, \
+            ILR_Torque+OLR_Torque+Cor_Torque, \
+            in_Torque, out_Torque
 
     def zTorque(self, zavg=False, plot=False):
         return self._zTorque(self.data.rho, zavg, plot=plot)
@@ -312,3 +359,31 @@ class reduceCylData:
         return self.grid.r[dsdr.argmax()], \
                self.grid.r[i_thresh]
 
+    def torque_density(self):
+        """
+        Computes the torque density.
+
+        See D'Angelo & Lubow 2008
+        """
+        GM_p, eps = self.params.get('gm_p'), self.eps()
+        
+        xp, yp, zp, rp = self.data.xp, self.data.yp, self.data.zp, self.data.rp
+        phi_p = self.data.phiPlanet
+
+        rho = self.data.rho
+        S = self.grid.distance(xp, yp, zp)
+
+        r, phi = self.grid.r[:, np.newaxis, np.newaxis], self.grid.phi[np.newaxis, :, np.newaxis]
+        
+        dPhi = rp * r * np.sin(phi - phi_p) * (GM_p / (S**2 + eps**2)**1.5)
+        integrand = (rho * dPhi * self.grid.dz).sum(2)
+        integrand = (self.grid.dphi * integrand).sum(1)
+        
+        # Torque density
+        torque_dens = integrand * self.grid.r
+
+        # Torque per unit disk mass
+        _, sigma = self.sigma()
+        torque_per_unit_mass = integrand / (2 * np.pi * sigma)
+        
+        return torque_dens, torque_per_unit_mass

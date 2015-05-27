@@ -35,7 +35,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
     assert end > start, 'Error: ending ndat must be greater than starting ndat.'
 
     if 'x' in outputs:
-        varlist1D = ['r', 'sigma_avg', 'vphi_avg', 'torque_avg', 'vort_avg']
+        varlist1D = ['r', 'sigma_avg', 'rho_mid', 'torque_avg', 'torque_density', \
+                         'torque_per_unit_mass', 'vort_avg', 'vphi_avg']
         asciiheader = 'variables = ' + ','.join(varlist1D)
 
     if 'xy' in outputs:
@@ -59,10 +60,12 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             os.mkdir('png')
 
     if 'time' in outputs:
-        varlistTime = ['time', 'sax', 'rp', 'r_gap_sigma', 'r_gap_thresh',
+        varlistTime = ['time', 'sax', 'rp', 'r_gap_sigma', 'r_gap_thresh',                       
                        'in_torque', 'out_torque',
                        'ILR_torque', 'OLR_torque', 'LR_torque',
-                       'COR_torque', 'torque_tot', 'm_disk']
+                       'COR_torque', 'torque_tot', 'm_disk',
+                       'fs_r', 'fp_r', 'fp_phi', 'fp_z',
+                       'ftot_r', 'ftot_phi', 'ftot_z']
         timeDict = {k: [] for k in varlistTime}
         timeheader = 'variables = ' + ','.join(varlistTime)
 
@@ -84,12 +87,6 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             sigma0, sigma1d = reduce0.sigma()
             sigma_disk = sigma1d[i_disk]
 
-        """
-        m = data.rho*grid.r3D*grid.dr3D*grid.dphi3D*grid.dz3D
-        import numpy as np
-        m_interior = m[np.where(grid.r < params['r_gap'])[0],:,:].sum()
-        print m_interior, m.sum()
-        """
 
         # process 3D data
         if 'xyz' in outputs:
@@ -138,11 +135,14 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             # process 1D data
             vphi_avg = azAverage(grid, process.vPhi())
             vort_avg = azAverage(grid, process.midplane_vortensity())
+            torque_dens, torque_per_unit_mass = process.torque_density()
 
             output_dict = {'r': grid.r,
                            'sigma_avg': sigma1d,
                            'rho_mid': data.rho[:, 0, grid.nztot / 2],
                            'torque_avg': torque_avg,
+                           'torque_density' : torque_dens,
+                           'torque_per_unit_mass' : torque_per_unit_mass,
                            'vort_avg': vort_avg,
                            'vphi_avg': vphi_avg}
             df = pd.DataFrame(output_dict, columns=varlist1D)
@@ -168,7 +168,8 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             r_gap_sigma, r_gap_thresh = process.disk_boundary(sigma_disk=sigma_disk)
             timeDict['r_gap_sigma'].append(r_gap_sigma)
             timeDict['r_gap_thresh'].append(r_gap_thresh)
-            ilr, olr, cor, lrtot, tot, in_torque, out_torque = process.resonance_torques()
+            
+            fs, fp, fi, ftot, ilr, olr, cor, lrtot, tot, in_torque, out_torque = process.resonance_torques()
             timeDict['in_torque'].append(in_torque)
             timeDict['out_torque'].append(out_torque)
             timeDict['ILR_torque'].append(ilr)
@@ -177,7 +178,20 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             timeDict['COR_torque'].append(cor)
             timeDict['torque_tot'].append(tot)
             timeDict['m_disk'].append(process.m_disk())
+            timeDict['fs_r'].append(fs[0])
+            timeDict['fp_r'].append(fp[0])
+            timeDict['fp_phi'].append(fp[1])
+            timeDict['fp_z'].append(fp[2])
+            timeDict['ftot_r'].append(ftot[0])
+            timeDict['ftot_phi'].append(ftot[1])
+            timeDict['ftot_z'].append(ftot[2])
 
+            if ndat % 10 == 0:
+                df = pd.DataFrame(timeDict, columns=varlistTime)
+                with open('time.dat', 'w') as fout:
+                    fout.write(timeheader + '\n')
+                    df.to_csv(fout, index=False, header=False, sep='\t')
+                
     if 'time' in outputs:
         df = pd.DataFrame(timeDict, columns=varlistTime)
         with open('time.dat', 'w') as fout:
