@@ -217,12 +217,11 @@ class SimData(object):
 
     @property
     def phiPlanet(self):
-        return np.arctan2(self.yp, self.xp) + 0.5 * np.pi
+        return np.arctan2(self.yp, self.xp) % (2 * np.pi)
 
     @property
     def omegaPlanet(self):
         return (self.vp * self.xp - self.up * self.yp) / (self.xp ** 2 + self.yp ** 2)
-
 
     def planetPos(self, frame='planet'):
         xn, yn, zn = self.xp, self.yp, self.zp
