@@ -76,7 +76,6 @@ def intRange(gridarr, gridmin=None, gridmax=None):
 
     return np.where((gridarr >= gridmin) & (gridarr <= gridmax))[0]
 
-
 def integrateR(grid, arr, rmin=None, rmax=None, ravg=False):
     """
     Array must be in 3D cylindrical coordinates
@@ -85,8 +84,9 @@ def integrateR(grid, arr, rmin=None, rmax=None, ravg=False):
 
     r, dr = grid.r[intrange], grid.dr[intrange]
     rrange = r.max() - r.min()
-
-    integral = np.einsum('ijk,i->jk', arr[intrange, :, :], r * dr)
+    integral = (r * dr)[:, np.newaxis, np.newaxis] * arr[intrange, :, :]
+    integral = integral.sum()
+    # integral = np.einsum('ijk,i->jk', arr[intrange, :, :], r * dr)
     return integral / rrange if ravg else integral
 
 
@@ -178,3 +178,8 @@ def centralDiff1D(grid, arr, arr_start=None, arr_end=None):
     f2 = np.hstack((arr[1:], arr_end))
     return (f2-f1)/dr
 
+def cart2cyl(grid, (vx, vy, vz)):
+    sin, cos = np.sin(grid.phi3D), np.cos(grid.phi3D)
+    r = vx * cos + vy * sin
+    phi = -vx * sin + vy * cos
+    return (r, phi, vz)
