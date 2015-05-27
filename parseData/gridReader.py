@@ -63,6 +63,9 @@ class gridReader:
             self.dr3D, self.dphi3D, self.dz3D = None, None, None
             self.dV3D = None
 
+        # optional variables for processing
+        self._jacobian = None
+
     def _grid2d(self, r, phi, z):
         r2D = np.vstack((r,) * self.nytot).transpose()  # rphi
         phi2D = np.vstack((phi,) * self.nxtot)  # rphi
@@ -76,7 +79,6 @@ class gridReader:
         z3D = np.dstack((zZPhi,) * self.nxtot).transpose()
         return r3D, phi3D, z3D
 
-
     def xDist(self, xp):
         return self.x - xp
 
@@ -88,6 +90,18 @@ class gridReader:
 
     def plotCoordsRZ(self):
         return self.rPlot, self.zPlot
+
+    def integrate(self, arr):
+        """
+        Given a scalar array with the same dimensions as the grid, performs a volume integral 
+        over the entire array and returns a scalar.
+        """
+        assert arr.shape == self.shape, "Error: input array must have same dimensions as the grid."
+        if self._jacobian is None:
+            self._jacobian = (self.r * self.dr)[:, np.newaxis, np.newaxis] * \
+                self.dphi[np.newaxis, :, np.newaxis] * \
+                self.dz[np.newaxis, np.newaxis, :]            
+        return (arr * self._jacobian).sum()
 
     def meshCoords(self, phi_p):
         r, phi = self.r_edge[2:-2], self.phi_edge[2:-2]
