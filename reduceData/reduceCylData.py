@@ -106,7 +106,10 @@ class reduceCylData:
         \int \rho dz, \int \int \rho dphi dz / 2 \pi
         :return: sigma, sigma1d
         """
-        sigma = self.diskFlatten(self.data.rho) 
+        if self.grid.ndims == 3:
+            sigma = self.diskFlatten(self.data.rho) 
+        else:
+            sigma = self.data.rho
         sigma1D = (sigma * self.grid.dphi[np.newaxis, :]).sum(1)/(2*np.pi)
         return sigma, sigma1D
 
@@ -379,11 +382,16 @@ class reduceCylData:
         integrand = (rho * dPhi * self.grid.dz).sum(2)
         integrand = (self.grid.dphi * integrand).sum(1)
         
+        
         # Torque density
         torque_dens = integrand * self.grid.r
+
+        # Integrated torque
+        torque_int = torque_dens * self.grid.dr
+        torque_int = np.cumsum(torque_int)
 
         # Torque per unit disk mass
         _, sigma = self.sigma()
         torque_per_unit_mass = integrand / (2 * np.pi * sigma)
         
-        return torque_dens, torque_per_unit_mass
+        return torque_dens, torque_int, torque_per_unit_mass
