@@ -35,8 +35,9 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
     assert end > start, 'Error: ending ndat must be greater than starting ndat.'
 
     if 'x' in outputs:
-        varlist1D = ['r', 'sigma_avg', 'rho_mid', 'torque_avg', 'torque_density', \
-                         'torque_per_unit_mass', 'vort_avg', 'vphi_avg']
+        varlist1D = ['r', 'r_norm', 'sigma_avg', 'rho_mid', \
+                         'torque_avg', 'torque_density', 'torque_per_unit_mass', 'torque_int', \
+                         'vort_avg', 'vphi_avg']
         asciiheader = 'variables = ' + ','.join(varlist1D)
 
     if 'xy' in outputs:
@@ -129,19 +130,22 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             output_dict['vortensity'] = process.vortensity()
             output_dict['vort_grad'] = process.midplane_vortensity()
 
-            tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet)
+            tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet+0.5*np.pi)
 
         if 'x' in outputs:
             # process 1D data
             vphi_avg = azAverage(grid, process.vPhi())
             vort_avg = azAverage(grid, process.midplane_vortensity())
-            torque_dens, torque_per_unit_mass = process.torque_density()
+            torque_dens, torque_int, torque_per_unit_mass = process.torque_density()
+            r_norm = (grid.r - data.rp) / data.rp
 
             output_dict = {'r': grid.r,
+                           'r_norm' : r_norm,
                            'sigma_avg': sigma1d,
                            'rho_mid': data.rho[:, 0, grid.nztot / 2],
                            'torque_avg': torque_avg,
                            'torque_density' : torque_dens,
+                           'torque_int' : torque_int, 
                            'torque_per_unit_mass' : torque_per_unit_mass,
                            'vort_avg': vort_avg,
                            'vphi_avg': vphi_avg}
