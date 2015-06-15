@@ -117,7 +117,7 @@ class reduceCylData:
         return self.diskFlatten(self.data.p)
 
     def vPhi(self, rhoThreshold=None):
-        return self.diskAverage(self.data.v, rhoThreshold)
+        return self.diskAverage(self.data.v, 0.0)
 
     def calcVelocities(self, phi_pl=None):
         k_mid = self.grid.nztot/2
@@ -355,7 +355,10 @@ class reduceCylData:
         dsdr = utility.centralDiff1D(self.grid, sigma1d)
 
         if not (sigma_disk is None):
-            i_thresh = np.where(sigma1d >= sigma_disk)[0][0]
+            try:
+                i_thresh = np.where(sigma1d >= sigma_disk)[0][0]
+            except IndexError:
+                i_thresh = np.where(sigma1d >= sigma_disk/2.0)[0][0]
         else:
             i_thresh = np.where(sigma1d >= (sigma1d.max()/2.0))[0][0]
 
