@@ -5,6 +5,7 @@ from .. import parseData
 from planetHydro.reduceData.reduceData import reduceData
 from .utility import azAverage
 from ..tecOutput import tecOutput
+import numpy as np
 
 """
 Data reduction
@@ -109,66 +110,31 @@ def processAll(path='.'):
         processData()
         os.chdir('../')
 
-
 def processData(path='.', n_start=1, n_skip=1):
     params, grid, datReader = parseData.initialize(path=path)
     start, end, ndats = tecOutput.detectData(path=path, n_start=n_start)
 
-    varlist = ['rho', 'p', 's', 'vr', 'vphi', 'vKep', 'vx', 'vy',
-               'rho_i', 'p_i', 'v_i',
-               'omega', 'LR', 'vortensity',
-               'rhoPertb', 'rhovr', 'torque', 'torque_i']
-    output = tecOutput.outputTec(varlist, grid, output=True, path=path)
-    varlist1d = ['r', 'sigma_avg', 'pi_avg',
-                 'vphi_avg', 'torque_avg', 'torque_int']
-    asciiheader = 'variables = ' + ', '.join(varlist1d)
+    varlist = ['sigma', 'sigma_pertb', 'pi']
+    output = tecOutput.outputTec(varlist + ['vx', 'vy'], grid, output=True, path=path)
+    outputRPHI = tecOutput.outputTec(varlist + ['vr', 'vphi'], grid, 
+                                     output=True, path=path, suffix='rphi', outDim='rphi')
 
     datrange = range(start, end, n_skip)
     if not (0 in datrange):
         datrange.insert(0, 0)
     for n_dat in datrange:
-        data, metadata = datReader.readData(n_dat)
+        data = datReader.readData(n_dat)
+        process = reduceData(grid, params, data)
+
         if n_dat == 0:
-            data0, metadata0 = data, metadata
+            data0 = data
 
-        processor = reduceData(grid, params, data, metadata)
-
-        # output 2D data
-        data['rho_i'] = data['rho'] - data0['rho']
-        data['p_i'] = data['p'] - data0['p']
-        data['v_i'] = data['v'] - data0['v']
-
-        data['omega'], _ = processor.omega()
-        data['LR'] = processor.lindbladRes()
-        _, _, vortensity = processor.vortensity()
-        data['vortensity'] = vortensity
-
-        rho_avg, data['rhoPertb'] = processor.rhoPertb()
-        data['rhovr'] = processor.rhovr()
-        _, data['torque'] = processor.torques(pos=True)
-
-        _, torque = processor.torques()
-        _, torque0 = processor.torque_sigma(data0['rho'])
-        data['torque_i'] = torque - torque0
-
-        vKep, vPl = processor.vPertb()
-        data['vr'], data['vphi'] = data['u'], vPl
-        data['vKep'] = vKep
-        data['vx'], data['vy'] = processor.calcVelocities(data['u'], vPl)
-        output.writeCylindrical(n_dat, data, processor.phiPlanet())
-
-
-        # output 1D averages
-        _, torque = processor.torques(pos=False)
-        data1d = {'r': grid.r,
-                  'sigma_avg': rho_avg,
-                  'pi_avg': azAverage(grid, data['p']),
-                  'vphi_avg': azAverage(grid, data['v']),
-                  'torque_avg': azAverage(grid, data['torque']),
-                  'torque_int': azAverage(grid, torque)}
-        df = pd.DataFrame(data1d, columns=varlist1d)
-
-        fname = str(n_dat).zfill(4) + 'cut.dat'
-        with open(fname, 'w') as fout:
-            fout.write(asciiheader + '\n')
-            df.to_csv(fout, index=False, header=False, sep='\t')
+        dat_out = {}
+        dat_out['sigma'] = data.rho
+        dat_out['sigma_pertb'] = process.sigma_pertb()
+        dat_out['pi'] = data.p
+        dat_out['vr'], dat_out['vphi'] = data.u, data.v - data.omegaPlanet * grid.r[:, np.newaxis]
+        dat_out['vx'], dat_out['vy'] = process.calculate_velocity()
+        
+        output.writeCylindrical(n_dat, dat_out, data.phiPlanet)
+        outputRPHI.writeRPHI(n_dat, dat_out, data.phiPlanet)

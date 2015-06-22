@@ -88,6 +88,13 @@ class gridReader:
     def zDist(self, zp):
         return self.z - zp
 
+    def plotCoordsRPHI(self, phi_p):
+        phiPlot = (self.phi_edge[2:-3] + (np.pi - phi_p)) % (2 * np.pi)
+
+        rPlot = np.vstack((self.rPlot,) * self.nytot).T
+        phiPlot = np.vstack((phiPlot,) * self.nxtot)
+        return rPlot, phiPlot
+
     def plotCoordsRZ(self):
         return self.rPlot, self.zPlot
 

@@ -26,11 +26,16 @@ class outputTec:
         :param output:
         """
         self.grid = grid
-        if (outDim == 'xy') | (outDim == 'rphi'):
+        if (outDim == 'xy'):
             self.ndims = 2
             self.gridsig = (['x', 'y'], 'nxtot, nytot')
             self.nztot = 1
             self.shape = self.nxtot, self.nytot = grid.nxtot, grid.nytot + 1
+        elif (outDim == 'rphi'):
+            self.ndims = 2
+            self.gridsig = (['x', 'y'], 'nxtot, nytot')
+            self.nztot = 1
+            self.shape = self.nxtot, self.nytot = grid.nxtot, grid.nytot
         elif (outDim == 'xz') | (outDim == 'rz'):
             self.ndims = 2
             self.gridsig = (['x', 'y'], 'nxtot, nytot')
@@ -153,6 +158,22 @@ class outputTec:
         reload(tecout)
         return tecout
 
+    def writeRPHI(self, ndat, data, phi_pl):
+        """
+        Writes 2D cartesian, r, phi
+        """
+        _r, _phi = self.grid.plotCoordsRPHI(phi_pl)
+        tecout = self.importTec()
+
+        for _var in self.varlist:
+            assert _var in data.keys(), "Error: {0} not found in data".format(_var)
+            _temp = data.get(_var)
+            assert _temp.shape == self.shape, "Error: shape mismatch {0}, {1}".format(_temp.shape, self.shape)
+            exec (_var + ' = _temp')
+
+        print "Writing file: " + str(ndat).zfill(4) + self.suffix
+        exec ('tecout.tecoutput(' + str(ndat) + ',_phi,_r,' + self.varstring + ')')
+
     def writeRZ(self, ndat, data):
         """
         Writes 2D cartesian, r, z
@@ -163,7 +184,7 @@ class outputTec:
         for _var in self.varlist:
             assert _var in data.keys(), "Error: {0} not found in data".format(_var)
             _temp = data.get(_var)
-            assert _temp.shape == self.shape, "Error: shape mismatch {0}, {1}".format(_var.shape, self.shape)
+            assert _temp.shape == self.shape, "Error: shape mismatch {0}, {1}".format(_temp.shape, self.shape)
             exec (_var + ' = _temp')
 
         print "Writing file: " + str(ndat).zfill(4) + self.suffix
