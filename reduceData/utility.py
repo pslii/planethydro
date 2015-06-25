@@ -141,7 +141,7 @@ def centralDiff3D(grid, arr, arr_start=None, arr_end=None):
 
     out = np.empty(grid.shape)
     for i in range(grid.nztot):
-        out[:, :, i] = centralDiff2D(grid, arr[:, :, i], arr_start=arr_start[i], arr_end=arr_end[i])
+        out[:, :, i] = d_dr(grid, arr[:, :, i], arr_start=arr_start[i], arr_end=arr_end[i])
     return out
 
 
@@ -149,7 +149,7 @@ def extrapolate(x, (x0, y0), (x1, y1)):
     return (y1 - y0) / (x1 - x0) * (x - x0) + y0
 
 
-def centralDiff2D(grid, arr, arr_start=None, arr_end=None):
+def d_dr(grid, arr, arr_start=None, arr_end=None):
     """
     Takes derivative in r direction using central difference method.
     :type grid: planetHydro.parseData.gridReader.gridReader
@@ -162,7 +162,47 @@ def centralDiff2D(grid, arr, arr_start=None, arr_end=None):
     _, nytot = arr.shape
     f1 = np.vstack((np.ones(nytot) * arr_start, arr[:-1, :]))  # f(r_i-1)
     f2 = np.vstack((arr[1:, :], np.ones(nytot) * arr_end))  # f(r_i+1)
-    return colMul(1.0 / dr, f2 - f1)
+    return (f2 - f1) / dr[:, np.newaxis]
+
+def d_dz(grid, arr, arr_start=None, arr_end=None):
+    """
+    Takes derivative in z direction using 2nd order central difference method.
+
+    Assumes grid is 3 dimensional.
+    """
+    z = (grid.z_edge[1:] + grid.z_edge[:-1]) / 2.0
+    dz = (z[2:] - z[:-2])[1:-1]  # NOTE: this is dr1+dr2, not regular dr
+
+    if arr_start is None: arr_start = extrapolate(z[1], (grid.z[0], arr[0, :]), (grid.z[1], arr[1, :]))
+    if arr_end is None: arr_end = extrapolate(r[-2], (grid.z[-2], arr[-2, :]), (grid.z[-1], arr[-1, :]))
+    _, nytot = arr.shape
+    f1 = np.vstack((np.ones(nytot) * arr_start, arr[:-1, :]))  # f(r_i-1)
+    f2 = np.vstack((arr[1:, :], np.ones(nytot) * arr_end))  # f(r_i+1)
+    return (f2 - f1) / dz[:, np.newaxis]
+
+
+def d_dphi(grid, arr):
+    """
+    Takes derivative in phi direction using 4th order central difference method. 
+    f'(x) = [f(x-2h) - 8 f(x-h) + 8 f(x+h) - f(x+2h)] / (12 h)
+
+    Assumes grid is at least 2 dimensional and that phi grid goes from 0 to 2 pi.
+
+    :type grid: planetHydro.parseData.gridReader.gridReader
+    """
+    neg_2h = np.roll(arr, 2, axis=1)
+    pos_2h = np.roll(arr, -2, axis=1)
+    neg_h = np.roll(arr, 1, axis=1)
+    pos_h = np.roll(arr, -1, axis=1)
+    h = grid.dphi
+    return (neg_2h - 8*neg_h + 8*pos_h - pos_2h) / (12 * h)
+    
+def curl2D(grid, u, v):
+    r = grid.r[:, np.newaxis]
+    return (d_dr(grid, r*v) - d_dphi(grid, u)) / r
+
+def grad2D(grid, arr):
+    return d_dr(grid, arr), d_dphi(grid, arr)/grid.r[:, np.newaxis]
 
 def centralDiff1D(grid, arr, arr_start=None, arr_end=None):
     """

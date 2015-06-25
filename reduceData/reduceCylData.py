@@ -318,8 +318,8 @@ class reduceCylData:
         :rtype: np.ndarray
         """
         (Sigma, _), B = self.sigma(), (self.oortB())[:, :, self.grid.nztot / 2]
-        dlogBdr =  utility.centralDiff2D(self.grid, B)/B
-        dlogSigmadr = utility.centralDiff2D(self.grid, Sigma)/Sigma
+        dlogBdr =  utility.d_dr(self.grid, B)/B
+        dlogSigmadr = utility.d_dr(self.grid, Sigma)/Sigma
         dlogSigmaBdr = Sigma * self.grid.r2D * (dlogSigmadr-dlogBdr)
         return dlogSigmaBdr
 
