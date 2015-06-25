@@ -114,7 +114,8 @@ def processData(path='.', n_start=1, n_skip=1):
     params, grid, datReader = parseData.initialize(path=path)
     start, end, ndats = tecOutput.detectData(path=path, n_start=n_start)
 
-    varlist = ['sigma', 'sigma_pertb', 'pi']
+    varlist = ['sigma', 'sigma_pertb', 'pi', 's', 'vtot', 'vort_grad',
+               'vorticity', 'vortensity', 'source']
     output = tecOutput.outputTec(varlist + ['vx', 'vy'], grid, output=True, path=path)
     outputRPHI = tecOutput.outputTec(varlist + ['vr', 'vphi'], grid, 
                                      output=True, path=path, suffix='rphi', outDim='rphi')
@@ -133,8 +134,14 @@ def processData(path='.', n_start=1, n_skip=1):
         dat_out['sigma'] = data.rho
         dat_out['sigma_pertb'] = process.sigma_pertb()
         dat_out['pi'] = data.p
-        dat_out['vr'], dat_out['vphi'] = data.u, data.v - data.omegaPlanet * grid.r[:, np.newaxis]
+        dat_out['s'] = data.s
+        dat_out['vort_grad'] = process.vortensity_gradient()
+        dat_out['vorticity'] = process.vorticity()
+        dat_out['vortensity'] = process.vortensity()
+        dat_out['source'] = process.vortensity_source()
+        dat_out['vr'], dat_out['vphi'] = data.u, data.v-data.omegaPlanet*grid.r[:, np.newaxis]
         dat_out['vx'], dat_out['vy'] = process.calculate_velocity()
-        
+        dat_out['vtot'] = np.sqrt(dat_out['vx']**2 + dat_out['vy']**2)
+                
         output.writeCylindrical(n_dat, dat_out, data.phiPlanet)
         outputRPHI.writeRPHI(n_dat, dat_out, data.phiPlanet)
