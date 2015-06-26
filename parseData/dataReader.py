@@ -191,6 +191,7 @@ class SimData(object):
 
         self.xp, self.yp, self.zp = metadata_dict.get('xn'), metadata_dict.get('yn'), metadata_dict.get('zn')
         self.up, self.vp, self.wp = metadata_dict.get('up'), metadata_dict.get('vp'), metadata_dict.get('wp')
+
         self.time, self.ndat = metadata_dict.get('time'), metadata_dict.get('ndat')
         self.metadata = metadata_dict
 
@@ -210,6 +211,19 @@ class SimData(object):
         print "Adding {0} to data dictionary".format(key)
         assert value.shape == self.shape, "Error: array must have shape {0}".format(self.shape)
         self.data[key] = value
+
+    @property
+    def cart_planet_velocity(self):
+        return self.up, self.vp, self.wp
+
+    @property
+    def cyl_planet_velocity(self):
+        u, v, w = self.up, self.vp, self.wp
+        phi_p = self.phiPlanet
+
+        vr = u * np.cos(phi_p) + v * np.sin(phi_p)
+        vphi = v * np.cos(phi_p) - u * np.sin(phi_p)
+        return vr, vphi, w
 
     @property
     def rp(self):
