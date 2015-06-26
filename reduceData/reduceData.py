@@ -14,6 +14,16 @@ class reduceData:
     """
 
     def __init__(self, grid, params, data):
+        """
+
+        :param grid:
+        :param params:
+        :param data:
+        :type grid: gridReader
+        :type params: dict
+        :type data: SimData
+        :return:
+        """
         self.grid = grid
         self.data = data
         self.params = params
@@ -23,8 +33,13 @@ class reduceData:
         return self.data.rho - sigma_avg[:, np.newaxis]
 
     def calculate_velocity(self):
-        phi_pl, omega_pl = self.data.phiPlanet, self.data.omegaPlanet
-        vr, vphi = self.data.u, self.data.v - omega_pl * self.grid.r[:, np.newaxis]
+        """
+        Calculate velocities in frame of planet.
+        :return:
+        """
+        phi_pl = self.data.phiPlanet
+        (vr_p, vphi_p, _) = self.data.cyl_planet_velocity
+        vr, vphi = self.data.u - vr_p, self.data.v - vphi_p
 
         phi_grid = self.grid.phi - phi_pl
         vx = vr * np.cos(phi_grid) - vphi * np.sin(phi_grid)
@@ -64,9 +79,10 @@ class reduceData:
         """
         \omega = curl(v)
         """
-        omega_pl = self.data.omegaPlanet
-        u, v = self.data.u, self.data.v - omega_pl * self.grid.r[:, np.newaxis]
-        return utility.curl2D(self.grid, u, v)
+        (vr_p, vphi_p, _) = self.data.cyl_planet_velocity
+        vr, vphi = self.data.u - vr_p, self.data.v - vphi_p
+
+        return utility.curl2D(self.grid, vr, vphi)
 
     def vortensity(self):
         """
@@ -75,9 +91,42 @@ class reduceData:
         return self.vorticity()/self.data.rho
 
     def vortensity_source(self):
+        """
+        In planet frame
+        :return:
+        """
         sigma = self.data.rho
+        (vr_p, vphi_p, _) = self.data.cyl_planet_velocity
+
+        vr, vphi = self.data.u - vr_p, self.data.v - vphi_p
         dsigdr, dsigdphi = utility.grad2D(self.grid, sigma)
         dpidr, dpidphi = utility.grad2D(self.grid, self.data.p)
-        return (dsigdr*dpidphi - dpidr*dsigdphi) / sigma**3
+        # (\nabla \Sigma \times \nabla p) / \Sigma^3
+        source = (dsigdr*dpidphi - dpidr*dsigdphi) / sigma**3
+        # \mathbf{v} \cdot \nabla(\omega/\Sigma)
+        # dvortensitydr, dvortensitydphi = utility.grad2D(self.grid, self.vortensity()/sigma)
 
+        return source # - (vr * dvortensitydr + vphi * dvortensitydphi)
+
+    def torque_density(self, plot=False):
+        sigma = self.data.rho
+        GM_p = self.params.get("gm_p")
+        eps = self.params.get('eps_d') * np.sqrt(self.params.get('temp_d')) * self.params.get('r_d')
+
+        r, phi = self.grid.r[:, np.newaxis], self.grid.phi[np.newaxis, :]
+        xp, yp, zp, rp = self.data.xp, self.data.yp, self.data.zp, self.data.rp
+        phi_p = self.data.phiPlanet
+        S = self.grid.distance(xp, yp, zp)
+        dPhi = rp * r * np.sin(phi - phi_p) * (GM_p / (S**2 + eps**2)**1.5)
+        torq_dens = sigma * dPhi
+
+        if plot:
+            # rescale to -1, 1 and plot as SymLogNorm
+            maxval = np.abs(torq_dens).max()
+            sign = np.sign(torq_dens)
+            log = np.log(np.abs(torq_dens)/maxval)
+            log *= sign
+            return log
+
+        return torq_dens
 

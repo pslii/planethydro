@@ -114,8 +114,8 @@ def processData(path='.', n_start=1, n_skip=1):
     params, grid, datReader = parseData.initialize(path=path)
     start, end, ndats = tecOutput.detectData(path=path, n_start=n_start)
 
-    varlist = ['sigma', 'sigma_pertb', 'pi', 's', 'vtot', 'vort_grad',
-               'vorticity', 'vortensity', 'source']
+    varlist = ['sigma', 'sigma_pertb', 'pi', 's', 'v_vK', 'vort_grad',
+               'vorticity', 'vortensity', 'source', 'torque_density']
     output = tecOutput.outputTec(varlist + ['vx', 'vy'], grid, output=True, path=path)
     outputRPHI = tecOutput.outputTec(varlist + ['vr', 'vphi'], grid, 
                                      output=True, path=path, suffix='rphi', outDim='rphi')
@@ -123,6 +123,8 @@ def processData(path='.', n_start=1, n_skip=1):
     datrange = range(start, end, n_skip)
     if not (0 in datrange):
         datrange.insert(0, 0)
+
+    v_Kep = np.sqrt(params.get('gm')/grid.r[:, np.newaxis])
     for n_dat in datrange:
         data = datReader.readData(n_dat)
         process = reduceData(grid, params, data)
@@ -139,9 +141,12 @@ def processData(path='.', n_start=1, n_skip=1):
         dat_out['vorticity'] = process.vorticity()
         dat_out['vortensity'] = process.vortensity()
         dat_out['source'] = process.vortensity_source()
-        dat_out['vr'], dat_out['vphi'] = data.u, data.v-data.omegaPlanet*grid.r[:, np.newaxis]
+
+        vr_p, vphi_p, _ = data.cyl_planet_velocity
+        dat_out['vr'], dat_out['vphi'] = data.u-vr_p, data.v-vphi_p
         dat_out['vx'], dat_out['vy'] = process.calculate_velocity()
-        dat_out['vtot'] = np.sqrt(dat_out['vx']**2 + dat_out['vy']**2)
+        dat_out['v_vK'] = data.v-v_Kep
+        dat_out['torque_density'] = process.torque_density()
                 
         output.writeCylindrical(n_dat, dat_out, data.phiPlanet)
         outputRPHI.writeRPHI(n_dat, dat_out, data.phiPlanet)
