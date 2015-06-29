@@ -7,18 +7,13 @@ from .utility import azAverage
 from .utility import polar_plot
 from ..tecOutput import tecOutput
 import numpy as np
-import os
+import os, sys
 
 
 __author__ = 'Patrick'
 
 
-def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
-                   datarange=(None, None), verbose=False, hydro=True):
-    params, grid, dataReader = parseData.initialize(hydro=hydro)
-
-    start, end = datarange
-
+def get_range((start, end)):
     startNone, endNone = start is None, end is None
     start_detect, end_detect, _ = tecOutput.detectData()
     if startNone and endNone: # process all files
@@ -34,18 +29,28 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
     assert start >= start_detect, 'Error: starting ndat must be positive.'
     assert end > start, 'Error: ending ndat must be greater than starting ndat.'
 
+    return start, end
+
+def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
+                   datarange=(None, None), verbose=False, hydro=True):
+    params, grid, dataReader = parseData.initialize(hydro=hydro)
+    start, end = get_range(datarange)
+
     if 'x' in outputs:
         varlist1D = ['r', 'r_norm', 'sigma_avg', 'rho_mid', \
                          'torque_avg', 'torque_density', 'torque_per_unit_mass', 'torque_int', \
                          'vort_avg', 'vphi_avg']
         asciiheader = 'variables = ' + ','.join(varlist1D)
 
-    if 'xy' in outputs:
+    if ('xy' in outputs) or ('rphi' in outputs):
         varlist2D = ['sigma', 'sigma_i', 'sigma_pertb', 'rho_mid',
-                     'pi', 'torque', 'torque_i', 'torque_pertb', 'realtorque',
-                     'vphi', 'vx', 'vy', 'LR',
+                     'pi', 'torque', 'torque_i', 'torque_pertb', 'realtorque', 'LR',
                      'vortensity', 'vort_grad']
-        tecOutXY = tecOutput.outputTec(varlist2D, grid, outDim='xy', output=True, suffix='xy')
+        if 'xy' in outputs:
+            tecOutXY = tecOutput.outputTec(varlist2D+['vx', 'vy'], grid, outDim='xy', output=True, suffix='xy')
+        if 'rphi' in outputs:
+            tecOutRPHI = tecOutput.outputTec(varlist2D+['vphi', 'vr'], grid, outDim='rphi',
+                                             output=True, suffix='rphi')
 
     if 'xz' in outputs:
         varlist2Dxz = ['rho', 'p', 'T', 'vr', 'vphi', 'vz']
@@ -73,13 +78,18 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     i_disk = np.where(grid.r > params.get('r_gap'))[0][0]
     if start > 0:
-        data0 = dataReader.readData(0, legacy=False)
+        try:
+            data0 = dataReader.readData(0, legacy=False)
+        except OSError:
+            print "Error: 0th datafile is incomplete. Returning."
+            sys.exit(-1)
         reduce0 = reduceCylData(grid, params, data0)
         sigma0, sigma1d = reduce0.sigma()
         sigma_disk = sigma1d[i_disk]
 
     for ndat in xrange(start, end):
         data = dataReader.readData(ndat, legacy=False)
+
         process = reduceCylData(grid, params, data)
         if ndat == 0:
             data0 = data
@@ -110,7 +120,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         realtorque = process.zTorque(zavg=True, plot=False)
         torque_avg = azAverage(grid, realtorque)
 
-        if 'xy' in outputs:
+        if ('xy' in outputs) or ('rphi' in outputs):
             torque = process.zTorque(zavg=True, plot=True)
             torque0 = process._zTorque(data0.rho, zavg=True, plot=True)
 
@@ -124,13 +134,17 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
             output_dict['realtorque'] = realtorque
             output_dict['torque_pertb'] = (realtorque.transpose() - torque_avg).transpose()
             output_dict['torque_i'] = output_dict['torque'] - torque0
-            output_dict['vx'], output_dict['vy'] = process.calcVelocities()
-            output_dict['vphi'] = process.vPhi()
             output_dict['LR'] = process.lindbladRes()
             output_dict['vortensity'] = process.vortensity()
             output_dict['vort_grad'] = process.midplane_vortensity()
 
-            tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet+0.5*np.pi)
+            if 'xy' in outputs:
+                output_dict['vx'], output_dict['vy'] = process.calcVelocities()
+                tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet+0.5*np.pi)
+            if 'rphi' in outputs:
+                output_dict['vr'] = process.vr()
+                output_dict['vphi'] = process.vPhi()
+                tecOutRPHI.writeRPHI(ndat, output_dict, data.phiPlanet)
 
         if 'x' in outputs:
             # process 1D data
