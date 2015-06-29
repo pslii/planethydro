@@ -35,21 +35,17 @@ class gridReader:
 
         self.xy_area, self.xz_area, self.vol = self._computeCellVol()
 
-        self.x = np.outer(self.r, np.cos(self.phi))
-        self.y = np.outer(self.r, np.sin(self.phi))
-        self.x_edge = np.outer(self.r_edge, np.cos(self.phi_edge))
-        self.y_edge = np.outer(self.r_edge, np.sin(self.phi_edge))
+        self.x = self.r[:, np.newaxis] * np.cos(self.phi[np.newaxis, :])
+        self.y = self.r[:, np.newaxis] * np.sin(self.phi[np.newaxis, :])
+        self.x_edge = self.r_edge[:, np.newaxis] * np.cos(self.phi_edge[np.newaxis, :])
+        self.y_edge = self.r_edge[:, np.newaxis] * np.sin(self.phi_edge[np.newaxis, :])
 
         # spherical radius
         if self.ndims == 3:
             self.r_sph = np.sqrt(np.tile(self.r ** 2, (self.nztot, 1)) + \
                                  np.tile(self.z ** 2, (self.nxtot, 1)).transpose())
-            self.rPlot = np.vstack((self.r_edge[2:-3],) * self.nztot).transpose()
         else:
             self.r_sph = self.r
-            self.rPlot = self.r_edge[2:-3]
-
-        self.zPlot = np.vstack((self.z_edge[2:-3],) * self.nxtot)
 
         # TODO: find more efficient method to generate these
         self.r2D, self.phi2D, self.z2D = self._grid2d(self.r, self.phi, self.z)
@@ -63,8 +59,15 @@ class gridReader:
             self.dr3D, self.dphi3D, self.dz3D = None, None, None
             self.dV3D = None
 
-        # optional variables for processing
+
+        # Optional variables initialized on first call
         self._jacobian = None
+
+        # RZ Plotting
+        self._r_rzPlot, self._z_rzPlot = None, None
+
+        # RPHI Plotting
+        self._r_rphiPlot = None
 
     def _grid2d(self, r, phi, z):
         r2D = np.vstack((r,) * self.nytot).transpose()  # rphi
@@ -89,14 +92,19 @@ class gridReader:
         return self.z - zp
 
     def plotCoordsRPHI(self, phi_p):
-        phiPlot = (self.phi_edge[2:-3] + (np.pi - phi_p)) % (2 * np.pi)
+        if self._r_rphiPlot is None:
+            self._r_rphiPlot = np.vstack((self.r_edge[2:-3],) * self.nytot).T
 
-        rPlot = np.vstack((self.rPlot,) * self.nytot).T
-        phiPlot = np.vstack((phiPlot,) * self.nxtot)
-        return rPlot, phiPlot
+        phi_rphiPlot = (self.phi_edge[2:-3] + (np.pi - phi_p)) % (2 * np.pi)
+        phi_rphiPlot = np.vstack((phi_rphiPlot,) * self.nxtot)
+        return self._r_rphiPlot, phi_rphiPlot
 
     def plotCoordsRZ(self):
-        return self.rPlot, self.zPlot
+        if (self._r_rzPlot is None) or (self._z_rzPlot is None):
+            self._r_rzPlot = np.vstack((self.r_edge[2:-3],) * self.nztot).transpose()
+            self._z_rzPlot = np.vstack((self.z_edge[2:-3],) * self.nxtot)
+
+        return self._r_rzPlot, self._z_rzPlot
 
     def integrate(self, arr):
         """
@@ -200,8 +208,12 @@ class gridReader:
         return dr, dphi, dz
 
     def _computeCellVol(self):
-        xy_area = np.outer(self.r * self.dr, self.dphi)
-        xz_area = np.outer(self.dr, self.dz)
-        # einsum black magic
-        vol = np.einsum('i,j,k->ijk', self.dr * self.r, self.dphi, self.dz)
+        rdr = self.r * self.dr
+        dphi = self.dphi
+        dz = self.dz
+        xy_area = rdr[:, np.newaxis] * dphi[np.newaxis, :]
+        xz_area = self.dr[:,np.newaxis] * dz[np.newaxis, :]
+        vol = rdr[:, np.newaxis, np.newaxis] * \
+              dphi[np.newaxis, :, np.newaxis] * \
+              dz[np.newaxis, np.newaxis, :]
         return xy_area, xz_area, vol
