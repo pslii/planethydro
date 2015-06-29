@@ -1,7 +1,7 @@
 import numpy as np
 import struct
 import time
-import matplotlib.pyplot as plt
+import os
 
 __author__ = 'pslii'
 
@@ -57,11 +57,14 @@ class dataReader:
 
         # precompute binary indices
         assert (len(fmtlist) == len(varlist))
-        self.unpackList, self.fmtlist, self.varlist, self.fileSize = \
+        self.unpackList, self.fmtlist, self.varlist, self.fileSize, self.full_fileSize = \
             self._computeUnpack(fmtlist, varlist)
 
     def __call__(self, ndat):
-        return self.readData(ndat)
+        try:
+            return self.readData(ndat)
+        except OSError:
+            return None
 
     def _progressbar(self, fname, progress, total):
         """
@@ -97,7 +100,7 @@ class dataReader:
                 starts.append(start)
                 ends.append(end)
         sizes = np.array(ends) - np.array(starts)
-        return zip(starts, sizes, formats), fmtlist_out, varlist_out, sizes.sum()
+        return zip(starts, sizes, formats), fmtlist_out, varlist_out, sizes.sum(), end
 
     @staticmethod
     def getByteSize(c):
@@ -142,9 +145,23 @@ class dataReader:
             var = unpack
         return var
 
+
     def readData(self, ndat, suffix="dat", n_digits=4, legacy=False):
+        """
+        :param ndat:
+        :param suffix:
+        :param n_digits:
+        :param legacy:
+        :raises OSError
+        :return:
+        """
         t0 = time.time()
         fname = str(ndat).zfill(n_digits) + suffix
+
+        if os.stat(fname).st_size != self.full_fileSize:
+            print "Error: file number {0} does not have the expected filesize.".format(ndat)
+            raise OSError
+
         data, metadata = {}, {}
         bytesRead = 0
         self._progressbar(fname, bytesRead, self.fileSize)
