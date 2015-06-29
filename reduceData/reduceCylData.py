@@ -119,6 +119,9 @@ class reduceCylData:
     def vPhi(self, rhoThreshold=None):
         return self.diskAverage(self.data.v, 0.0)
 
+    def vr(self):
+        return self.diskAverage(self.data.u, 0.0)
+
     def calcVelocities(self, phi_pl=None):
         k_mid = self.grid.nztot/2
         u, v = [x[:,:,k_mid] for x in [self.data.u, self.data.v]]
