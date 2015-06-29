@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class dataWriter:
+class FortranWriter:
     def __init__(self):
         pass
 
