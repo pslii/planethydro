@@ -32,9 +32,10 @@ def get_range((start, end)):
     return start, end
 
 def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
-                   datarange=(None, None), verbose=False, hydro=True):
+                   datarange=(None, None), skip=None, verbose=False, hydro=True):
     params, grid, dataReader = parseData.initialize(hydro=hydro)
     start, end = get_range(datarange)
+    if skip is None: skip = 1
 
     if 'x' in outputs:
         varlist1D = ['r', 'r_norm', 'sigma_avg', 'rho_mid', \
@@ -87,7 +88,7 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
         sigma0, sigma1d = reduce0.sigma()
         sigma_disk = sigma1d[i_disk]
 
-    for ndat in xrange(start, end):
+    for ndat in xrange(start, end, skip):
         data = dataReader.readData(ndat, legacy=False)
 
         process = reduceCylData(grid, params, data)

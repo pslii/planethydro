@@ -9,17 +9,21 @@ def main(argv):
     try:
         opts, args = getopt.getopt(argv, 'h', longopts=['x', 'xz', 'xy', 'rphi', 'xyz', 'time', 'png', 'all'])
     except getopt.GetoptError:
-        print "reduceCylData --all --x --xy --rphi --xz --xyz --png --time [start] [end]"
+        print "reduceCylData --all --x --xy --rphi --xz --xyz --png --time [start] [end] [skip]"
         sys.exit(2)
 
-    start, end = None, None
+    start, end, skip = None, None, None
     if len(args) == 1:
         start = int(args[0])
     elif len(args) == 2:
         start = int(args[0])
         end = int(args[1])
-    elif len(args) >= 3:
-        print "Usage: reduceCylData --all --x --xy --rphi --xz --xyz --png --time [start] [end]"
+    elif len(args) == 3:
+        start = int(args[0])
+        end = int(args[1])
+        skip = int(args[2])
+    elif len(args) >= 4:
+        print "Usage: reduceCylData --all --x --xy --rphi --xz --xyz --png --time [start] [end] [skip]"
 
     output = []
     for opt, arg in opts:
@@ -45,7 +49,7 @@ def main(argv):
             output = ['x', 'xz', 'xy', 'rphi', 'xyz', 'time', 'png']
     if len(output) == 0:
         output = ['x', 'xy', 'time', 'png']
-    processCylData(output, verbose=False, datarange=(start, end))
+    processCylData(output, verbose=False, datarange=(start, end), skip=skip)
 
 
 if __name__ == "__main__":
