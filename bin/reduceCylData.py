@@ -24,6 +24,7 @@ def main(argv):
         skip = int(args[2])
     elif len(args) >= 4:
         print "Usage: reduceCylData --all --x --xy --rphi --xz --xyz --png --time [start] [end] [skip]"
+        sys.exit(2)
 
     output = []
     for opt, arg in opts:
