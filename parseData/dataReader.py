@@ -61,10 +61,7 @@ class dataReader:
             self._computeUnpack(fmtlist, varlist)
 
     def __call__(self, ndat):
-        try:
-            return self.readData(ndat)
-        except OSError:
-            return None
+        return self.readData(ndat)
 
     def _progressbar(self, fname, progress, total):
         """
@@ -152,7 +149,6 @@ class dataReader:
         :param suffix:
         :param n_digits:
         :param legacy:
-        :raises OSError
         :return:
         """
         t0 = time.time()
@@ -160,7 +156,7 @@ class dataReader:
 
         if os.stat(fname).st_size != self.full_fileSize:
             print "Error: file number {0} does not have the expected filesize.".format(ndat)
-            raise OSError
+            return None
 
         data, metadata = {}, {}
         bytesRead = 0

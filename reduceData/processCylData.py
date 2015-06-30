@@ -79,9 +79,9 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     i_disk = np.where(grid.r > params.get('r_gap'))[0][0]
     if start > 0:
-        try:
-            data0 = dataReader.readData(0, legacy=False)
-        except OSError:
+        data0 = dataReader.readData(0, legacy=False)
+        if data0 is None:
+            raise OSError
             print "Error: 0th datafile is incomplete. Returning."
             sys.exit(-1)
         reduce0 = reduceCylData(grid, params, data0)
@@ -90,6 +90,9 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
 
     for ndat in xrange(start, end, skip):
         data = dataReader.readData(ndat, legacy=False)
+        if data is None:
+            print "Skipping file."
+            continue
 
         process = reduceCylData(grid, params, data)
         if ndat == 0:
@@ -143,8 +146,9 @@ def processCylData(outputs=['x', 'xy', 'xz', 'xyz', 'time'],
                 output_dict['vx'], output_dict['vy'] = process.calcVelocities()
                 tecOutXY.writeCylindrical(ndat, output_dict, data.phiPlanet+0.5*np.pi)
             if 'rphi' in outputs:
-                output_dict['vr'] = process.vr()
-                output_dict['vphi'] = process.vPhi()
+                up, vp, _ = data.cyl_planet_velocity
+                output_dict['vr'] = process.vr() - up
+                output_dict['vphi'] = process.vPhi() - vp
                 tecOutRPHI.writeRPHI(ndat, output_dict, data.phiPlanet)
 
         if 'x' in outputs:
